@@ -1,0 +1,75 @@
+swagger: "2.0"
+info:
+    description: RESTful APIs for collab drawing.
+    title: Collab Drawing
+    version: 1.0.0
+host: YOUR-PROJECT-ID.appspot.com
+basePath: /api
+schemes:
+    - https
+consumes:
+    - application/json
+produces:
+    - application/json
+paths:
+    /drawings:
+        get:
+            description: Produces a list of active drawings.
+            operationId: listDrawings
+            responses:
+                "200":
+                    description: List of active drawings.
+                    schema:
+                        type: array
+                        items:
+                            $ref: "#/definitions/drawing"
+            parameters:
+                - name: activeSince
+                  in: query
+                  description: |
+                      filters the to a subset of those which have been active since the
+                      RFC3339 timestamp.
+                  required: false
+                  type: string
+                  format: date-time
+                - name: limit
+                  in: query
+                  description: lists up to the limit number of tasks
+                  required: false
+                  type: integer
+                  format: int32
+    /drawing:
+        post:
+            description: Create a new drawing
+            operationId: createDrawing
+            responses:
+                "200":
+                    description: Successfully create a drawing.
+                    schema:
+                        $ref: "#/definitions/drawing"
+    /drawing/{id}:
+        get:
+            description: Get information on a specific drawing
+            operationId: getDrawing
+            responses:
+                "200":
+                    description: Drawing information
+                    schema:
+                        $ref: "#/definitions/drawing"
+            parameters:
+                - name: id
+                  in: path
+                  description: Id of drawing
+                  required: true
+                  type: string
+
+definitions:
+    drawing:
+        type: object
+        required:
+            - id
+        properties:
+            id:
+                type: string
+
+
