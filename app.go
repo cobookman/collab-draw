@@ -12,8 +12,14 @@ func main() {
 	apiRouter := r.PathPrefix("/api").Subrouter()
 	apiV1 := apiRouter.PathPrefix("/v1").Subrouter()
 
-	apiV1.Path("/devices").Methods("GET").
-		HandlerFunc(RestfulMiddleware(deviceListHandler))
+	apiV1.Path("/canvas").Methods("POST").
+		HandlerFunc(RestfulMiddleware(CreateCanvas))
+
+	apiV1.Path("/canvas").Methods("GET").
+		HandlerFunc(RestfulMiddleware(GetCanvas))
+
+	apiV1.Path("/canvases").Methods("GET").
+		HandlerFunc(RestfulMiddleware(ListCanvases))
 
 	http.Handle("/", r)
 	appengine.Main()
@@ -27,6 +33,10 @@ func Jsonify(v interface{}, w http.ResponseWriter, status int) {
 	json.NewEncoder(w).Encode(v)
 }
 
+type ErrorResp struct {
+	Error string `json:"error"`
+}
+
 func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		v, err := f(r)
@@ -34,7 +44,9 @@ func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 		var out interface{}
 		if err != nil {
 			status = http.StatusInternalServerError
-			out = err
+			out = ErrorResp{
+				Error: err.Error(),
+			}
 		} else {
 			status = http.StatusOK
 			out = v
@@ -43,21 +55,3 @@ func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 	}
 }
 
-type Device struct {
-	Name string
-}
-
-type DeviceList struct {
-	Devices []Device
-}
-
-func deviceListHandler(r *http.Request) (interface{}, error) {
-	devices := DeviceList{
-		Devices: []Device{
-			Device{
-				Name: "Colin",
-			},
-		},
-	}
-	return devices, nil
-}
