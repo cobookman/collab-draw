@@ -4,12 +4,16 @@ import (
 	"net/http"
 	"time"
 	"strconv"
+
+	"golang.org/x/net/context"
 )
 
 // Creates a new drawing canvas.
 func CreateCanvas(r *http.Request) (interface{}, error) {
 	canvas := Canvas{}
-	err := canvas.Create()
+
+	ctx := context.Background()
+	err := canvas.Create(ctx)
 	return canvas, err
 }
 
@@ -17,7 +21,9 @@ func CreateCanvas(r *http.Request) (interface{}, error) {
 func GetCanvas(r *http.Request) (interface{}, error) {
 	id := r.FormValue("id")
 	canvas := Canvas{}
-	err := canvas.Get(id)
+
+	ctx := context.Background()
+	err := canvas.Get(ctx, id)
 	return canvas, err
 }
 
@@ -34,6 +40,8 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 	}
 
 	canvases := Canvases{}
-	err = canvases.GetAll(activeSince, limit)
+
+	ctx := context.Background()
+	err = canvases.GetAll(ctx, activeSince, limit)
 	return canvases, err
 }

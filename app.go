@@ -39,9 +39,10 @@ type ErrorResp struct {
 
 func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		v, err := f(r)
 		var status int
 		var out interface{}
+
+		v, err := f(r)
 		if err != nil {
 			status = http.StatusInternalServerError
 			out = ErrorResp{
@@ -51,6 +52,7 @@ func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 			status = http.StatusOK
 			out = v
 		}
+
 		Jsonify(out, w, status)
 	}
 }
