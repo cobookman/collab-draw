@@ -1,11 +1,13 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"time"
 	"strconv"
 
 	"golang.org/x/net/context"
+	"github.com/gorilla/websocket"
 )
 
 // Creates a new drawing canvas.
@@ -45,3 +47,14 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 	err = canvases.GetAll(ctx, activeSince, limit)
 	return canvases, err
 }
+
+func ListenCanvas(r *http.Request, c *websocket.Conn) {
+	for {
+		_, _, err := c.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			break
+		}
+	}
+}
+
