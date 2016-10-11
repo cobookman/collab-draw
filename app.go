@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
-	"net/http"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"google.golang.org/appengine"
-
+	"net/http"
 )
 
 var (
@@ -16,7 +15,6 @@ var (
 		WriteBufferSize: 1024,
 	}
 )
-
 
 func main() {
 	r := mux.NewRouter()
@@ -48,7 +46,7 @@ func main() {
 	appengine.Main()
 }
 
-type RestfulApi func(r *http.Request) (interface {}, error)
+type RestfulApi func(r *http.Request) (interface{}, error)
 type WebsocketApi func(r *http.Request, c *websocket.Conn)
 
 func Jsonify(v interface{}, w http.ResponseWriter, status int) {
@@ -82,7 +80,7 @@ func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 }
 
 func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			Jsonify(ErrorResp{Error: err.Error()}, w, http.StatusInternalServerError)

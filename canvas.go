@@ -1,15 +1,15 @@
 package main
 
 import (
-	"os"
-	"log"
-	"time"
 	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
+	"log"
+	"os"
+	"time"
 )
 
 var (
-	dc *datastore.Client
+	dc   *datastore.Client
 	Kind string = "Canvas"
 )
 
@@ -31,7 +31,6 @@ type Canvas struct {
 type Canvases struct {
 	Canvases []Canvas
 }
-
 
 func (c *Canvas) Get(ctx context.Context, id string) error {
 	k, err := datastore.DecodeKey(id)

@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 
-	"golang.org/x/net/context"
 	"github.com/gorilla/websocket"
+	"golang.org/x/net/context"
 )
 
 // Creates a new drawing canvas.
@@ -57,4 +57,3 @@ func ListenCanvas(r *http.Request, c *websocket.Conn) {
 		}
 	}
 }
-
