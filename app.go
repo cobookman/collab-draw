@@ -1,22 +1,26 @@
 package main
 
 import (
+	"os"
+	"log"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"google.golang.org/appengine"
+	"sync"
 	"net/http"
 )
 
 var (
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
+	upgrader = websocket.Upgrader{}
+	gopath = os.Getenv("GOPATH")
 )
 
 func main() {
+	log.Print("Starting up server")
+	sHttp := http.NewServeMux()
+	sWs := http.NewServeMux()
+
 	r := mux.NewRouter()
 	ae := r.PathPrefix("/_ah").Subrouter()
 	api := r.PathPrefix("/api").Subrouter()
@@ -31,19 +35,38 @@ func main() {
 	apiV1.Path("/canvases").Methods("GET").
 		HandlerFunc(RestfulMiddleware(ListCanvases))
 
-	apiV1.Path("/canvas/ws").Methods("GET").
-		HandlerFunc(WebsocketMiddleware(ListenCanvas))
-
 	// Required for appengine flex to measure the health of service
 	ae.Path("/health").Methods("GET", "POST").
 		HandlerFunc(healthCheck)
 
 	// Serve static assets. Note that gorilla matches in order of route order
 	// So this should be the last route added
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+	static_assets_path := gopath + "/src/" + "github.com/cobookman/collabdraw/public"
+	log.Print("Static assets serving from: ", static_assets_path)
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
+	sHttp.Handle("/", r)
 
-	http.Handle("/", r)
-	appengine.Main()
+	// Add websocket routes
+	sWs.Handle("/canvas", WebsocketMiddleware(ListenCanvas))
+
+	// Serve both http servers
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		err := http.ListenAndServe("0.0.0.0:8080", sHttp)
+		log.Print("Failed to serve 8080", err)
+		wg.Done()
+	}()
+	wg.Add(1)
+	go func() {
+		err := http.ListenAndServe("0.0.0.0:65080", sWs)
+		log.Print("Failed to serve 65080", err)
+		wg.Done()
+	}()
+
+	log.Print("Started up both servers")
+	wg.Wait()
+	//appengine.Main()
 }
 
 type RestfulApi func(r *http.Request) (interface{}, error)

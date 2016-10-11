@@ -50,9 +50,15 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 
 func ListenCanvas(r *http.Request, c *websocket.Conn) {
 	for {
-		_, _, err := c.ReadMessage()
+		mt, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
+			break
+		}
+		log.Printf("recv: %s", message)
+		err = c.WriteMessage(mt, message)
+		if err != nil {
+			log.Println("write:", err)
 			break
 		}
 	}

@@ -1,2 +1,2 @@
-# collab-draw
+# collabdraw
 Collaborative Drawing
