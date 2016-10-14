@@ -36,7 +36,14 @@ fi
 
 # Run newly built docker image
 echo "Running docker image"
-docker run -i -t -d -p 8080:8080 -p 65080:65080 --name collabdraw-dev collabdraw
+docker run \
+  -i -t -d \
+  -p 8080:8080 \
+  -p 65080:65080 \
+  -e GOOGLE_APPLICATION_CREDENTIALS="/go/src/github.com/cobookman/collabdraw/service-account.json" \
+  -e GCLOUD_DATASET_ID="strong-moose" \
+  --name collabdraw-dev \
+  collabdraw
 
 # python -mwebbrowser http://localhost:8080 > /dev/null
 

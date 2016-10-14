@@ -2,8 +2,8 @@ runtime: custom
 vm: true
 
 network:
-        # forwarded_ports:
-        #        - 65080
+        forwarded_ports:
+                - 65080
         instance_tag: websocket
 
 automatic_scaling:

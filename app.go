@@ -21,9 +21,11 @@ func main() {
 	sHttp := http.NewServeMux()
 	sWs := http.NewServeMux()
 
-	r := mux.NewRouter()
-	ae := r.PathPrefix("/_ah").Subrouter()
-	api := r.PathPrefix("/api").Subrouter()
+	rHttp := mux.NewRouter()
+	rWs := mux.NewRouter()
+
+	ae := rHttp.PathPrefix("/_ah").Subrouter()
+	api := rHttp.PathPrefix("/api").Subrouter()
 	apiV1 := api.PathPrefix("/v1").Subrouter()
 
 	apiV1.Path("/canvas").Methods("POST").
@@ -35,19 +37,24 @@ func main() {
 	apiV1.Path("/canvases").Methods("GET").
 		HandlerFunc(RestfulMiddleware(ListCanvases))
 
+	apiV1.Path("/hostip").Methods("GET").
+		HandlerFunc(RestfulMiddleware(HostIp))
+
+	rWs.Path("/canvas").
+		HandlerFunc(WebsocketMiddleware(ListenCanvas))
+
 	// Required for appengine flex to measure the health of service
 	ae.Path("/health").Methods("GET", "POST").
 		HandlerFunc(healthCheck)
 
 	// Serve static assets. Note that gorilla matches in order of route order
-	// So this should be the last route added
+	// So this should be the last route added to our http server
 	static_assets_path := gopath + "/src/" + "github.com/cobookman/collabdraw/public"
 	log.Print("Static assets serving from: ", static_assets_path)
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
-	sHttp.Handle("/", r)
+	rHttp.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
 
-	// Add websocket routes
-	sWs.Handle("/canvas", WebsocketMiddleware(ListenCanvas))
+	sHttp.Handle("/", rHttp)
+	sWs.Handle("/", rWs)
 
 	// Serve both http servers
 	wg := &sync.WaitGroup{}
@@ -68,6 +75,7 @@ func main() {
 	wg.Wait()
 	//appengine.Main()
 }
+
 
 type RestfulApi func(r *http.Request) (interface{}, error)
 type WebsocketApi func(r *http.Request, c *websocket.Conn)
