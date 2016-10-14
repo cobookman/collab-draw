@@ -1,8 +1,8 @@
 package main
 
 import (
-	"log"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -17,7 +17,7 @@ var (
 func init() {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", "http://metadata/computeMetadata/v1/instance" +
+	req, err := http.NewRequest("GET", "http://metadata/computeMetadata/v1/instance"+
 		"/network-interfaces/0/access-configs/0/external-ip", nil)
 	if err != nil {
 		log.Fatal(err)

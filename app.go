@@ -1,19 +1,19 @@
 package main
 
 import (
-	"os"
-	"log"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"sync"
+	"log"
 	"net/http"
+	"os"
+	"sync"
 )
 
 var (
 	upgrader = websocket.Upgrader{}
-	gopath = os.Getenv("GOPATH")
+	gopath   = os.Getenv("GOPATH")
 )
 
 func main() {
@@ -75,7 +75,6 @@ func main() {
 	wg.Wait()
 	//appengine.Main()
 }
-
 
 type RestfulApi func(r *http.Request) (interface{}, error)
 type WebsocketApi func(r *http.Request, c *websocket.Conn)
