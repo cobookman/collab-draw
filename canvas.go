@@ -2,6 +2,7 @@ package main
 
 import (
 	"cloud.google.com/go/datastore"
+	"errors"
 	"golang.org/x/net/context"
 	"log"
 	"os"
@@ -38,6 +39,10 @@ func (c *Canvas) Get(ctx context.Context, id string) error {
 		return err
 	}
 
+	if k.Kind() != Kind {
+		return errors.New("Invalid key")
+	}
+
 	err = dc.Get(ctx, k, c)
 	return err
 }
@@ -45,10 +50,12 @@ func (c *Canvas) Get(ctx context.Context, id string) error {
 func (c *Canvas) Create(ctx context.Context) error {
 	k := datastore.NewIncompleteKey(ctx, Kind, nil)
 	k, err := dc.Put(ctx, k, c)
-	if err == nil {
-		c.Id = k.Encode()
+	if err != nil {
+		return err
 	}
-	return err
+
+	c.Id = k.Encode()
+	return nil
 }
 
 func (cs *Canvases) GetAll(ctx context.Context, activeSince time.Time, limit int) error {
@@ -57,6 +64,6 @@ func (cs *Canvases) GetAll(ctx context.Context, activeSince time.Time, limit int
 		Limit(limit).
 		Filter("activeSince >", activeSince)
 
-	_, err := dc.GetAll(ctx, q, cs.Canvases)
+	_, err := dc.GetAll(ctx, q, &cs.Canvases)
 	return err
 }

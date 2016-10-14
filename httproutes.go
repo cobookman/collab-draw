@@ -1,13 +1,11 @@
 package main
 
 import (
-	"log"
+	"errors"
+	"golang.org/x/net/context"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/gorilla/websocket"
-	"golang.org/x/net/context"
 )
 
 // Creates a new drawing canvas.
@@ -22,8 +20,10 @@ func CreateCanvas(r *http.Request) (interface{}, error) {
 // Gets a canvas by specified Id.
 func GetCanvas(r *http.Request) (interface{}, error) {
 	id := r.FormValue("id")
+	if len(id) == 0 {
+		return nil, errors.New("Please specify a canvas Id")
+	}
 	canvas := Canvas{}
-
 	ctx := context.Background()
 	err := canvas.Get(ctx, id)
 	return canvas, err
@@ -35,10 +35,13 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	limit, err := strconv.Atoi(r.FormValue("limit"))
-	if err != nil {
-		return nil, err
+	limit := 0
+	if len(r.FormValue("limit")) != 0 {
+		var err error
+		limit, err = strconv.Atoi(r.FormValue("limit"))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	canvases := Canvases{}
@@ -46,24 +49,4 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 	ctx := context.Background()
 	err = canvases.GetAll(ctx, activeSince, limit)
 	return canvases, err
-}
-
-func ListenCanvas(r *http.Request, c *websocket.Conn) {
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
-}
-
-func HostIp(r *http.Request) (interface{}, error) {
-	return HostIpAddr(), nil
 }
