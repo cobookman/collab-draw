@@ -23,6 +23,6 @@ func ListenCanvas(r *http.Request, c *websocket.Conn) {
 	}
 }
 
-func HostIp(r *http.Request) (interface{}, error) {
-	return HostIpAddr(), nil
+func OnIncomingDrawing(drawing Drawing) error {
+	return nil
 }

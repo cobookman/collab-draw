@@ -84,3 +84,13 @@ func TestListCanvas(t *testing.T) {
 		t.Fatal("No canvases returned :(")
 	}
 }
+
+func TestHostIp(t *testing.T) {
+	i, err := HostIp(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(i.(IpAddr).Ip) == 0 {
+		t.Fatal("no ip address")
+	}
+}

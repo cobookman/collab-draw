@@ -4,28 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"os"
-	"sync"
 )
 
 var (
-	upgrader = websocket.Upgrader{}
-	gopath   = os.Getenv("GOPATH")
+	gopath = os.Getenv("GOPATH")
 )
 
 func main() {
-	log.Print("Starting up server")
-	sHttp := http.NewServeMux()
-	sWs := http.NewServeMux()
+	s := http.NewServeMux()
+	r := mux.NewRouter()
 
-	rHttp := mux.NewRouter()
-	rWs := mux.NewRouter()
-
-	ae := rHttp.PathPrefix("/_ah").Subrouter()
-	api := rHttp.PathPrefix("/api").Subrouter()
+	ae := r.PathPrefix("/_ah").Subrouter()
+	api := r.PathPrefix("/api").Subrouter()
 	apiV1 := api.PathPrefix("/v1").Subrouter()
 
 	apiV1.Path("/canvas").Methods("POST").
@@ -40,44 +33,22 @@ func main() {
 	apiV1.Path("/hostip").Methods("GET").
 		HandlerFunc(RestfulMiddleware(HostIp))
 
-	rWs.Path("/canvas").
-		HandlerFunc(WebsocketMiddleware(ListenCanvas))
-
 	// Required for appengine flex to measure the health of service
 	ae.Path("/health").Methods("GET", "POST").
 		HandlerFunc(healthCheck)
 
 	// Serve static assets. Note that gorilla matches in order of route order
 	// So this should be the last route added to our http server
-	static_assets_path := gopath + "/src/" + "github.com/cobookman/collabdraw/public"
+	static_assets_path := gopath + "/src/" + "github.com/cobookman/collabdraw/services/default/public"
 	log.Print("Static assets serving from: ", static_assets_path)
-	rHttp.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
 
-	sHttp.Handle("/", rHttp)
-	sWs.Handle("/", rWs)
-
-	// Serve both http servers
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		err := http.ListenAndServe("0.0.0.0:8080", sHttp)
-		log.Print("Failed to serve 8080", err)
-		wg.Done()
-	}()
-	wg.Add(1)
-	go func() {
-		err := http.ListenAndServe("0.0.0.0:65080", sWs)
-		log.Print("Failed to serve 65080", err)
-		wg.Done()
-	}()
-
-	log.Print("Started up both servers")
-	wg.Wait()
-	//appengine.Main()
+	s.Handle("/", r)
+	err := http.ListenAndServe("0.0.0.0:8080", s)
+	log.Print("Failed to serve 8080", err)
 }
 
 type RestfulApi func(r *http.Request) (interface{}, error)
-type WebsocketApi func(r *http.Request, c *websocket.Conn)
 
 func Jsonify(v interface{}, w http.ResponseWriter, status int) {
 	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
@@ -106,19 +77,6 @@ func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
 		}
 
 		Jsonify(out, w, status)
-	}
-}
-
-func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			Jsonify(ErrorResp{Error: err.Error()}, w, http.StatusInternalServerError)
-			return
-		}
-
-		defer ws.Close()
-		f(r, ws)
 	}
 }
 

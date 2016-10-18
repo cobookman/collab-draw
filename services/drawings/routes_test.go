@@ -19,12 +19,3 @@ func TestListenCanvasE2E(t *testing.T) {
 	}
 }
 
-func TestHostIp(t *testing.T) {
-	i, err := HostIp(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(i.(IpAddr).Ip) == 0 {
-		t.Fatal("No ip address :(")
-	}
-}

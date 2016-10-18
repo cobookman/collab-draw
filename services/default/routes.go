@@ -50,3 +50,7 @@ func ListCanvases(r *http.Request) (interface{}, error) {
 	err = canvases.GetAll(ctx, activeSince, limit)
 	return canvases, err
 }
+
+func HostIp(r *http.Request) (interface{}, error) {
+	return HostIpAddr(), nil
+}

@@ -1,0 +1,14 @@
+runtime: custom
+vm: true
+service: drawings
+
+network:
+        forwarded_ports:
+                - 65080
+        instance_tag: websocket
+
+automatic_scaling:
+        min_num_instances: 1
+
+env_variables:
+        GCLOUD_DATASET_ID: 'strong-moose'
