@@ -1,0 +1,16 @@
+{
+  "name": "msg_router",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+	  "@google-cloud/pubsub": "^0.1.1",
+	  "@google-cloud/datastore": "^0.1.1"
+  },
+  "author": "",
+  "license": "ISC"
+}
