@@ -11,15 +11,26 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"time"
 )
 
 var (
 	upgrader = websocket.Upgrader{}
 	gopath   = os.Getenv("GOPATH")
+	mq       *MessagingQueue
 )
 
 func main() {
+	log.Print("Starting up messaging queue")
+	ctx := context.Background()
+	projectID := os.Getenv("GCLOUD_PROJECT")
+	topicName := "topic-" + uuid.NewV4().String()
+	subName := "sub-" + uuid.NewV4().String()
+	var err error;
+	mq, err = NewMessagingQueue(ctx, projectID, topicName, subName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Print("Starting up server")
 	s := http.NewServeMux()
 
@@ -32,7 +43,7 @@ func main() {
 		HandlerFunc(healthCheck)
 
 	r.Path("/canvas").
-		HandlerFunc(WebsocketMiddleware(ListenCanvas))
+		HandlerFunc(WebsocketMiddleware(UserCanvasSocket))
 
 	s.Handle("/", r)
 
@@ -51,34 +62,36 @@ func main() {
 		err := http.ListenAndServe("0.0.0.0:8080", s)
 		log.Print("Failed to serve 8080", err)
 	}()
+
+	// Create blocking thread for http server to bypass appengine proxy
 	go func() {
 		defer wg.Done()
 
-		// avoids appengine proxy
 		err := http.ListenAndServe("0.0.0.0:65080", s)
 		log.Print("Failed to serve 65080", err)
 	}()
+
+	// Create thread for messaging queue worker
 	go func() {
 		defer wg.Done()
-		sub, err := subscribeIncomingDrawings()
-		if err != nil {
-			log.Print("Failed to subscribe to incoming drawing pubsub topic: ", err)
-			return
-		}
 
 		// Start a single worker
-		if err := listenIncomingDrawings(sub, OnIncomingDrawing); err != nil {
+		if err := mq.OnMessage(DrawingMessageMiddleware(OnIncomingDrawing)); err != nil {
 			log.Print("Worker failed", err)
 		}
 	}()
-
 	log.Print("Started up all servers")
 
 	// Will block until wg.Done() is called
 	wg.Wait()
+
+	// Some service died, clean ourselves up then kill
+	if err := mq.Cleanup(ctx); err != nil {
+		log.Fatal(err)
+	}
 }
 
-type WebsocketApi func(r *http.Request, c *websocket.Conn)
+type WebsocketApi func(r *http.Request, c *websocket.Conn, mq *MessagingQueue)
 type IncomingDrawingHandler func(drawing Drawing) error
 
 func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
@@ -90,7 +103,7 @@ func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
 		}
 
 		defer ws.Close()
-		f(r, ws)
+		f(r, ws, mq)
 	}
 }
 
@@ -98,47 +111,13 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
 }
 
-func subscribeIncomingDrawings() (*pubsub.Subscription, error) {
-	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, os.Getenv("GCLOUD_PROJECT"))
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new unique topic name for this server instance
-	topicName := "topic-" + uuid.NewV4().String()
-
-	// Create topic
-	topic, _ := client.CreateTopic(ctx, topicName)
-
-	// Add a subscription for our host, using a random unique uuid.
-	// We'll give ourselves 10 seconds to respond to a message before its
-	// deemed as a failure
-	subscriptionName := "subscription-" + uuid.NewV4().String()
-	return client.CreateSubscription(ctx, subscriptionName, topic, 10*time.Second, nil)
-}
-
-func listenIncomingDrawings(subscription *pubsub.Subscription, handler IncomingDrawingHandler) error {
-	ctx := context.Background()
-	it, err := subscription.Pull(ctx)
-	if err != nil {
-		return err
-	}
-	defer it.Stop()
-
-	for {
-		msg, err := it.Next()
-		if err != nil {
-			return err
-		}
+func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {
+	return func(msg *pubsub.Message) (error) {
 		drawing := Drawing{}
 		if err := drawing.Unmarshal(msg.Data); err != nil {
-			log.Print("Failed to parse data: ", msg.Data)
+			return err
 		}
-		if err := handler(drawing); err != nil {
-			msg.Done(false)
-		} else {
-			msg.Done(true)
-		}
+
+		return handler(drawing)
 	}
 }

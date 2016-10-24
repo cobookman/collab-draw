@@ -5,6 +5,7 @@ import (
 )
 
 type Drawing struct {
+	CanvasID string `json:"canvasId"`
 }
 
 func (d *Drawing) Marshal() ([]byte, error) {

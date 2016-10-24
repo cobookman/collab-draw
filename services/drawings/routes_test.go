@@ -18,4 +18,3 @@ func TestListenCanvasE2E(t *testing.T) {
 		t.Fatal("dail:", err)
 	}
 }
-
