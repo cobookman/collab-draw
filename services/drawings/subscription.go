@@ -56,6 +56,9 @@ func (mq MessagingQueue) OnMessage(f IncomingMessageHandler) error {
 	}
 	defer it.Stop()
 
+	// You might want to use a worker pool to pull down the messages
+	// to maximize messages/s processed. For now we are going to run
+	// this in 1 thread.
 	for {
 		msg, err := it.Next()
 		if err != nil {

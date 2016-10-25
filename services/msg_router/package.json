@@ -2,15 +2,20 @@
   "name": "msg_router",
   "version": "1.0.0",
   "private": true,
-  "description": "",
+  "author": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "GOOGLE_APPLICATION_CREDENTIALS=./service-account.json GCLOUD_PROJECT=strong-moose mocha -R spec -t 120000 --require intelli-espower-loader test/_setup.js test/*.test.js"
   },
   "dependencies": {
-	  "@google-cloud/pubsub": "^0.1.1",
-	  "@google-cloud/datastore": "^0.1.1"
+    "@google-cloud/pubsub": "^0.1.1"
   },
-  "author": "",
+  "devDependencies": {
+    "intelli-espower-loader": "^1.0.1",
+    "mocha": "^2.5.3",
+    "power-assert": "^1.4.1",
+    "proxyquire": "^1.7.10",
+    "sinon": "^1.17.6"
+  },
   "license": "ISC"
 }

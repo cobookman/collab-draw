@@ -132,7 +132,7 @@ func UserCanvasSocket(r *http.Request, c *websocket.Conn, mq *MessagingQueue) {
 			log.Println("write:", err)
 			break
 		}
-		// TODO(bookman): Route incoming drawing 
+		// TODO(bookman): Route incoming drawing
 	}
 }
 
