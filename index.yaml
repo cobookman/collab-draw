@@ -1,0 +1,6 @@
+indexes:
+
+- kind: Drawing
+  ancestor: no
+  properties:
+  - name: CanvasID

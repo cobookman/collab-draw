@@ -1,35 +1,34 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
-	"sync"
-	"reflect"
+	"github.com/gorilla/websocket"
+	"golang.org/x/net/context"
 	"log"
 	"net/http"
-	"encoding/json"
-	"golang.org/x/net/context"
-	"github.com/gorilla/websocket"
+	"reflect"
+	"sync"
 )
 
 var (
 	userSockets = make(map[string][]*websocket.Conn)
-	lock = sync.RWMutex{}
+	lock        = sync.RWMutex{}
 )
 
-
 type SocketErr struct {
-	Error error
+	Error   error
 	Message string
 }
 
 type SocketMsg struct {
-	Type string `json:"type"`
+	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
 
 func SocketErrf(c *websocket.Conn, err error, msg string) {
 	se := SocketErr{
-		Error: err,
+		Error:   err,
 		Message: msg,
 	}
 	b, _ := json.Marshal(se)

@@ -1,18 +1,18 @@
 package main
 
 import (
-	"strings"
 	"cloud.google.com/go/datastore"
 	"errors"
 	"golang.org/x/net/context"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
 var (
-	dc   *datastore.Client
-	CanvasKind string = "Canvas"
+	dc            *datastore.Client
+	CanvasKind    string = "Canvas"
 	CanvasSubKind string = "CanvasSub"
 )
 
@@ -28,6 +28,7 @@ func init() {
 }
 
 type Canvas struct {
+	ID      string `json:"id"`
 	Created time.Time
 }
 
@@ -37,7 +38,7 @@ type Canvases struct {
 
 type CanvasSubscription struct {
 	CanvasId string `json:"canvasId"`
-	TopicId string `json:"topic"`
+	TopicId  string `json:"topic"`
 }
 
 func GetCanvas(ctx context.Context, id string) (*Canvas, error) {
@@ -52,6 +53,9 @@ func GetCanvas(ctx context.Context, id string) (*Canvas, error) {
 
 	c := new(Canvas)
 	err = dc.Get(ctx, k, c)
+
+	// attach the canvas's id for future ref.
+	c.ID = id
 	return c, err
 }
 
@@ -64,6 +68,8 @@ func CreateCanvas(ctx context.Context) (*Canvas, error) {
 		return nil, err
 	}
 
+	// Attach the new id to canvas for future ref.
+	c.ID = k.Encode()
 	return c, nil
 }
 
@@ -93,7 +99,7 @@ func GetCanvasSubscriptions(ctx context.Context, canvasId string) ([]string, err
 	// \ufffd = largest possible utf8 character
 	q := datastore.NewQuery(CanvasSubKind).
 		Filter("__key__ >", namePrefix).
-		Filter("__key__ <", namePrefix + "\ufffd").
+		Filter("__key__ <", namePrefix+"\ufffd").
 		KeysOnly()
 
 	subNames := make([]string, 0, 10)
@@ -119,6 +125,11 @@ func GetAllCanvases(ctx context.Context, activeSince time.Time, limit int) (*Can
 		Filter("activeSince >", activeSince)
 
 	cs := new(Canvases)
-	_, err := dc.GetAll(ctx, q, &cs.Canvases)
+	keys, err := dc.GetAll(ctx, q, &cs.Canvases)
+
+	// Attach Id to each canvas obj for future ref.
+	for i, key := range keys {
+		cs.Canvases[i].ID = key.Encode()
+	}
 	return cs, err
 }

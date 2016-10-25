@@ -25,7 +25,7 @@ func main() {
 	projectID := os.Getenv("GCLOUD_PROJECT")
 	topicName := "topic-" + uuid.NewV4().String()
 	subName := "sub-" + uuid.NewV4().String()
-	var err error;
+	var err error
 	mq, err = NewMessagingQueue(ctx, projectID, topicName, subName)
 	if err != nil {
 		log.Fatal(err)
@@ -112,7 +112,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {
-	return func(msg *pubsub.Message) (error) {
+	return func(msg *pubsub.Message) error {
 		drawing := Drawing{}
 		if err := drawing.Unmarshal(msg.Data); err != nil {
 			return err

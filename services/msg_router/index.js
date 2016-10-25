@@ -8,7 +8,9 @@ exports.forwardDrawing = function forwardDrawing (context, data) {
     if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
       throw new Error("canvasId not provided. Need to know which canvas the drawing is placed in");
     }
-    context.success("Forwarded Drawing");
+    // TODO(bookman): Actually forward drawings
+    context.error("TODO(bookman): Actually forward drawings");
+    //context.success("Forwarded Drawing");
   } catch (err) {
     console.error(err);
     return context.failure(err.message);

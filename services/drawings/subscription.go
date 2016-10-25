@@ -1,9 +1,9 @@
 package main
 
 import (
-	"time"
 	"cloud.google.com/go/pubsub"
 	"golang.org/x/net/context"
+	"time"
 )
 
 type MessagingQueue struct {
