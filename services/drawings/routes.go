@@ -118,21 +118,46 @@ func UserCanvasSocket(r *http.Request, c *websocket.Conn, mq *MessagingQueue) {
 	}
 	SocketRespf(c, canvas)
 
+	// get canvas's drawings & send to end user
+	drawings, err := GetDrawings(ctx, canvas)
+	if err != nil {
+		log.Print(err)
+		SocketErrf(c, err, "Failed to get previous drawings for canvas")
+		return
+	}
+
+	// Send up the drawings one at a time
+	for _, d := range drawings {
+		SocketRespf(c, d)
+	}
+
 	// Deal with incoming drawings
 	for {
-		mt, message, err := c.ReadMessage()
+		mt, msg, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			break
 		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-		// TODO(bookman): Route incoming drawing
+		log.Printf("recv: %s", msg)
+		processMsg(c, mt, msg)
 	}
+}
+
+func processMsg(c *websocket.Conn, mt int, msg []byte) {
+	ctx := context.Background()
+
+	d := Drawing{}
+	if err := d.Unmarshal(msg); err != nil {
+		SocketErrf(c, err, "Failed to parse sent drawing")
+		return
+	}
+
+	if err := HandleNewDrawing(ctx, d); err != nil {
+		SocketErrf(c, err, "Failed to handle drawing")
+		return
+	}
+
+	SocketRespf(c, msg)
 }
 
 // Called when we get a pubsub message that needs to be sent to some of our

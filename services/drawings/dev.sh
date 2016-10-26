@@ -5,6 +5,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DOCKER_TAG="drawings-service"
 DOCKER_NAME="drawings-service-dev"
 
+# Attempt to build the golang binary before building docker image (fail fast)
+go build $DIR/*.go
+if [ $? -ne 0 ]; then
+  exit $?
+fi
+
 # Cleanup old docker containers for given service
 docker stop ${DOCKER_NAME} 2>&1 > /dev/null
 OLD_DOCKER=$(docker ps -a --filter "name=$DOCKER_TAG" | awk '{if(NR>1) print $1 }')
@@ -16,7 +22,7 @@ fi
 docker build -t ${DOCKER_TAG} $DIR
 if [ $? -ne 0 ]; then
   echo "Failed to build service ${DOCKER_TAG}'s docker instance"
-  exit
+  exit $?
 fi
 
 docker run \
@@ -26,6 +32,7 @@ docker run \
   -e GOOGLE_APPLICATION_CREDENTIALS="/go/src/github.com/cobookman/collabdraw/services/${PWD##*/}/service-account.json" \
   -e GCLOUD_DATASET_ID="$PROJECT_ID" \
   -e GCLOUD_PROJECT="$PROJECT_ID" \
+  -e UPSTREAM_DRAWING_TOPIC="$UPSTREAM_DRAWING_TOPIC" \
   --name $DOCKER_NAME \
   $DOCKER_TAG
 

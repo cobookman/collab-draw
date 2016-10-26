@@ -4,28 +4,14 @@ import (
 	"cloud.google.com/go/datastore"
 	"errors"
 	"golang.org/x/net/context"
-	"log"
-	"os"
 	"strings"
 	"time"
 )
 
 var (
-	dc            *datastore.Client
 	CanvasKind    string = "Canvas"
 	CanvasSubKind string = "CanvasSub"
 )
-
-func init() {
-	ctx := context.Background()
-	projectID := os.Getenv("GCLOUD_DATASET_ID")
-
-	var err error
-	dc, err = datastore.NewClient(ctx, projectID)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 type Canvas struct {
 	ID      string `json:"id"`
@@ -52,7 +38,7 @@ func GetCanvas(ctx context.Context, id string) (*Canvas, error) {
 	}
 
 	c := new(Canvas)
-	err = dc.Get(ctx, k, c)
+	err = datastoreClient().Get(ctx, k, c)
 
 	// attach the canvas's id for future ref.
 	c.ID = id
@@ -63,7 +49,7 @@ func CreateCanvas(ctx context.Context) (*Canvas, error) {
 	k := datastore.NewIncompleteKey(ctx, CanvasKind, nil)
 	c := new(Canvas)
 	c.Created = time.Now().UTC()
-	k, err := dc.Put(ctx, k, c)
+	k, err := datastoreClient().Put(ctx, k, c)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +68,7 @@ func AddCanvasSubscription(ctx context.Context, canvasId string, topicName strin
 	sub.CanvasId = canvasId
 	sub.TopicId = topicName
 
-	_, err := dc.Put(ctx, k, sub)
+	_, err := datastoreClient().Put(ctx, k, sub)
 	return err
 }
 
@@ -103,7 +89,7 @@ func GetCanvasSubscriptions(ctx context.Context, canvasId string) ([]string, err
 		KeysOnly()
 
 	subNames := make([]string, 0, 10)
-	for t := dc.Run(ctx, q); ; {
+	for t := datastoreClient().Run(ctx, q); ; {
 		var sub CanvasSubscription
 		k, err := t.Next(&sub)
 		if err == datastore.Done {
@@ -125,7 +111,7 @@ func GetAllCanvases(ctx context.Context, activeSince time.Time, limit int) (*Can
 		Filter("activeSince >", activeSince)
 
 	cs := new(Canvases)
-	keys, err := dc.GetAll(ctx, q, &cs.Canvases)
+	keys, err := datastoreClient().GetAll(ctx, q, &cs.Canvases)
 
 	// Attach Id to each canvas obj for future ref.
 	for i, key := range keys {
