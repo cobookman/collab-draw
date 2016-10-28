@@ -8,4 +8,4 @@ GCLOUD_DATASET_ID=${PROJECT_ID} IS_DEV="1" bash -c "go test --httpAddr=$HTTP_ADD
 
 echo "Testing project id"
 HTTP_ADDR="$PROJECT_ID.appspot.com"
-GCLODU_DATASET_ID=${PROJECT_ID} IS_DEV="0" bash -c "go test --httpAddr=$HTTP_ADDR"
+GCLOUD_DATASET_ID=${PROJECT_ID} IS_DEV="0" bash -c "go test --httpAddr=$HTTP_ADDR"

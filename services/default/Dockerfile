@@ -2,7 +2,7 @@
 FROM golang:latest
 
 # Add source
-ADD . /go/src/github.com/cobookman/collabdraw/services/default
+COPY . /go/src/github.com/cobookman/collabdraw/services/default
 
 # Install deps & Build service
 RUN go get github.com/cobookman/collabdraw/services/default

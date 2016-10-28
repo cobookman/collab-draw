@@ -69,7 +69,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         pattern="/:page"
         data="{{routeData}}"
         tail="{{subroute}}"></app-route>
-
+    <app-route
+        route="{{route}}"
+        pattern="/canvas"
+        tail="{{canvasRoute}}"></app-route>
     <app-drawer-layout fullbleed>
       <!-- Drawer content -->
       <app-drawer>
@@ -95,7 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             fallback-selection="view404"
             role="main">
           <my-canvas-selector name="canvas-selector"></my-canvas-selector>
-          <my-canvas name="canvas"></my-canvas>
+          <my-canvas name="canvas" route="{{canvasRoute}}"></my-canvas>
           <my-view404 name="view404"></my-view404>
         </iron-pages>
       </app-header-layout>

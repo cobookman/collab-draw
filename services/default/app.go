@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -41,7 +42,20 @@ func main() {
 	// So this should be the last route added to our http server
 	static_assets_path := gopath + "/src/" + "github.com/cobookman/collabdraw/services/default/public"
 	log.Print("Static assets serving from: ", static_assets_path)
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir(static_assets_path)))
+	// r.PathPrefix("/*.html").Handler(http.FileServer(http.Dir(static_assets_path)))
+	r.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		exts := []string{"html", "js", "css", "png", "json"}
+		fext := filepath.Ext(r.URL.Path)
+		log.Print(r.URL.Path, fext)
+		for _, ext := range exts {
+			if fext == "." + ext {
+				http.ServeFile(w, r, static_assets_path + "/" + r.URL.Path)
+				return
+			}
+		}
+
+		http.ServeFile(w, r, static_assets_path + "/index.html")
+	}))
 
 	s.Handle("/", r)
 	err := http.ListenAndServe("0.0.0.0:8080", s)

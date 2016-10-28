@@ -9,6 +9,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="my-canvas">
@@ -19,18 +21,90 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         padding: 10px;
       }
+
+      canvas  {
+        width: 400px;
+        height: 400px;
+        border: 2px solid black;
+      }
     </style>
 
+    <app-route
+           route="{{route}}"
+           pattern="/:id"
+           data="{{data}}">
+    </app-route>
     <div class="card">
       <div class="circle">2</div>
-      <h1>Draw something!</h1>
-      <p>TODO bookman
+      <h1>Canvas #{{data.id}}</h1>
+      <canvas id="canvas"></canvas>
     </div>
   </template>
 
   <script>
     Polymer({
-      is: 'my-canvas'
+      is: 'my-canvas',
+      listeners: {
+        'canvas.down': 'onDraw',
+        'canvas.up': 'onDraw',
+        'canvas.track': 'onDraw'
+      },
+      properties: {
+        canvasId: {
+          type: String,
+          notify: true
+        }
+      },
+      observers: [
+        "_routeChanged(route.path)"
+      ],
+      _routeChanged: function(changeRecord) {
+        if(!changeRecord || changeRecord == "/") {
+          alert("Unknown canvasId");
+        }
+      },
+      ready: function() {
+        this.ctx = this.$.canvas.getContext("2d");
+        this.canvasWidth = this.$.canvas.width;
+        this.canvasHeight = this.$.canvas.height;
+        this.x = 0;
+        this.y = 0;
+        this.lineWidth = 2;
+        this.lineStyle = "black";
+      },
+      onDraw: function(e) {
+        var e2 = e.detail.sourceEvent;
+        if (e.type == "down" || e.type == "track") {
+          var bounds = this.$.canvas.getBoundingClientRect();
+          var x = e2.clientX - bounds.left;
+          var y = e2.clientY - bounds.top;
+          if (e.type == "track") {
+            this.drawLine(x, y);
+          } else if (e.type == "down") {
+            this.drawDot(x, y);
+          }
+          this.x = x;
+          this.y = y;
+        } else if (e.type == "up") {
+        } else {
+          console.error("Unknown event type of: ", e.type, e);
+        }
+      },
+      drawDot: function(x, y) {
+        this.ctx.beginPath();
+        this.ctx.fillStyle = this.lineStyle;
+        this.ctx.fillRect(x, y, this.lineWidth, this.lineWidth);
+        this.ctx.closePath();
+      },
+      drawLine: function(x, y) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.x, this.y);
+        this.ctx.lineTo(x, y);
+        this.ctx.strokeStyle = this.lineStyle;
+        this.ctx.lineWidth = this.lineWidth;
+        this.ctx.stroke();
+        this.ctx.closePath();
+      },
     });
   </script>
 </dom-module>

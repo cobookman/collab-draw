@@ -1,9 +1,16 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . $DIR/../../config.sh
+cd $DIR
 
 DOCKER_TAG="default-service"
 DOCKER_NAME="default-service-dev"
+
+# Attempt to build the golang binary before building docker image (fail fast)
+go build $DIR/*.go
+if [ $? -ne 0 ]; then
+  exit $?
+fi
 
 # Cleanup old docker containers for given service
 docker stop ${DOCKER_NAME} 2>&1 > /dev/null
@@ -16,7 +23,7 @@ fi
 docker build -t ${DOCKER_TAG} $DIR
 if [ $? -ne 0 ]; then
   echo "Failed to build service ${DOCKER_TAG}'s docker instance"
-  exit
+  exit $?
 fi
 
 docker run \
