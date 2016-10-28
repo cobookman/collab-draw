@@ -75,9 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <app-drawer>
         <app-toolbar>Menu</app-toolbar>
         <iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
-          <a name="view1" href="/view1">View One</a>
-          <a name="view2" href="/view2">View Two</a>
-          <a name="view3" href="/view3">View Three</a>
+          <a name="canvas-selector" href="/canvas-selector">View One</a>
         </iron-selector>
       </app-drawer>
 
@@ -96,9 +94,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             attr-for-selected="name"
             fallback-selection="view404"
             role="main">
-          <my-view1 name="view1"></my-view1>
-          <my-view2 name="view2"></my-view2>
-          <my-view3 name="view3"></my-view3>
+          <my-canvas-selector name="canvas-selector"></my-canvas-selector>
+          <my-canvas name="canvas"></my-canvas>
           <my-view404 name="view404"></my-view404>
         </iron-pages>
       </app-header-layout>
@@ -122,7 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ],
 
       _routePageChanged: function(page) {
-        this.page = page || 'view1';
+        this.page = page || 'canvas-selector';
       },
 
       _pageChanged: function(page) {
