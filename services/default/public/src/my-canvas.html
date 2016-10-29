@@ -23,8 +23,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       canvas  {
-        width: 400px;
-        height: 400px;
+        /** DO NOT SET WIDTH & HEIGHT HERE.
+          ONLY SET DIRECTLY ON CANVAS ELEMENT. **/
         border: 2px solid black;
       }
     </style>
@@ -37,7 +37,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <div class="card">
       <div class="circle">2</div>
       <h1>Canvas #{{data.id}}</h1>
-      <canvas id="canvas"></canvas>
+      <canvas id="canvas" width="400" height="400"></canvas>
     </div>
   </template>
 
@@ -73,11 +73,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.lineStyle = "black";
       },
       onDraw: function(e) {
-        var e2 = e.detail.sourceEvent;
         if (e.type == "down" || e.type == "track") {
           var bounds = this.$.canvas.getBoundingClientRect();
-          var x = e2.clientX - bounds.left;
-          var y = e2.clientY - bounds.top;
+          var x = e.detail.x - bounds.left;
+          var y = e.detail.y - bounds.top;
           if (e.type == "track") {
             this.drawLine(x, y);
           } else if (e.type == "down") {

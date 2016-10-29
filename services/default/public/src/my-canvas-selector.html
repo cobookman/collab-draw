@@ -10,6 +10,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link ref="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
 
 <link rel="import" href="shared-styles.html">
 
@@ -32,6 +34,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <div class="card">
       <div class="circle">1</div>
       <h1>Canvas Selector</h1>
+      <paper-button on-tap="createCanvas">Create new Canvas</paper-button>
+      <iron-ajax
+          id="newCanvasAjax"
+          method="POST"
+          body="{}"
+          on-response="onNewCanvas"
+          url="/api/v1/canvas"
+          handle-as="json">
+      </iron-ajax>
       <p>Select a canvas</p>
       <p>//todo(bookman): Implement api calls</p>
     </div>
@@ -48,6 +59,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         },
         data: {
           type: Object,
+        },
+      },
+      createCanvas: function() {
+        var req = this.$.newCanvasAjax.generateRequest();
+      },
+      onNewCanvas: function(data) {
+        if (data.detail.response.error) {
+          alert(data.detail.response);
+          console.error("Failed to get a new canvas", data);
+        } else {
+          console.log("Created canvas w/id: ", data.detail.response.id);
+          this.set("route.path", "/canvas/" + data.detail.response.id);
         }
       }
     });
