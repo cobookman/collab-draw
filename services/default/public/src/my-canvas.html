@@ -10,6 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
 
 <link rel="import" href="shared-styles.html">
 
@@ -35,10 +36,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            data="{{data}}">
     </app-route>
     <div class="card">
-      <div class="circle">2</div>
       <h1>Canvas #{{data.id}}</h1>
+      <h3>
+        <span hidden="{{!connected}}">Connected to websocket</span>
+        <span hidden="{{connected}}">Not Connected to websocket</span>
+      </h3>
       <canvas id="canvas" width="400" height="400"></canvas>
     </div>
+
+    <iron-ajax
+      id="hostIp"
+      method="POST"
+      body="{}"
+      on-response="onHostIp"
+      handle-as="json">
+    </iron-ajax>
   </template>
 
   <script>
@@ -53,6 +65,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         canvasId: {
           type: String,
           notify: true
+        },
+        connected: {
+          type: Boolean,
+          notify: true,
+          value: false
+        },
+        websocketHost: {
+          type: String,
+          notify: false,
+          value: function() {
+            var host = "" + window.location.host;
+            host = host.replace("www.", "");
+            host = "drawings-dot-" + host;
+            return window.location.protocol + "//" + host;
+          }
         }
       },
       observers: [
@@ -64,6 +91,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
       ready: function() {
+        window.location.host;
+        this.$.hostIp.url = this.websocketHost;
+        this.$.hostIp.generateRequest();
+        this.initCanvas()
+      },
+      onHostIp: function(data) {
+        if(!data || !data.detail || !data.detail.response.wshost) {
+          alert("No host for websockets connection");
+        } else {
+          if (this.ws) {
+            this.ws.close();
+          }
+
+          this.ws = new Websocket("ws://" + data.detail.response.wsip + "/canvas");
+          this.ws.onopen = function() {
+            console.log("Connected to ws");
+            this.set("connected", true);
+          }.bind(this);
+          this.ws.onclose = function() {
+            console.log("Disconnected to ws");
+            this.set("conneccted", false);
+            this.ws = null;
+          }.bind(this);
+          this.ws.onmessage = function(evt) {
+            this.onUpstreamDrawing(evt.data);
+          }.bind(this);
+        }
+      },
+      initCanvas: function() {
         this.ctx = this.$.canvas.getContext("2d");
         this.canvasWidth = this.$.canvas.width;
         this.canvasHeight = this.$.canvas.height;
@@ -71,9 +127,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.y = 0;
         this.lineWidth = 2;
         this.lineStyle = "black";
+        this.pointbuf = [];
       },
       onDraw: function(e) {
         if (e.type == "down" || e.type == "track") {
+          this.pointbuf = [];
           var bounds = this.$.canvas.getBoundingClientRect();
           var x = e.detail.x - bounds.left;
           var y = e.detail.y - bounds.top;
@@ -84,7 +142,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           this.x = x;
           this.y = y;
+          this.pointbuf.append({x: x, y: y});
         } else if (e.type == "up") {
+          // send drawn points downstream
+          var data = JSON.stringify({
+            canvasId: this.canvasId,
+            points: this.pointbuf,
+          });
+          console.log(data);
+          this.ws.send(data);
+          this.pointbuf = [];
         } else {
           console.error("Unknown event type of: ", e.type, e);
         }
@@ -94,6 +161,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.ctx.fillStyle = this.lineStyle;
         this.ctx.fillRect(x, y, this.lineWidth, this.lineWidth);
         this.ctx.closePath();
+      },
+      onUpstreamDrawing: function(drawing) {
+        console.log("Drawing", drawing);
       },
       drawLine: function(x, y) {
         this.ctx.beginPath();

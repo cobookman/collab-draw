@@ -23,8 +23,8 @@ func init() {
 	// setup upstream drawing topic
 	upstreamTopicName := os.Getenv("UPSTREAM_DRAWING_TOPIC")
 	if len(upstreamTopicName) == 0 {
-		log.Fatal(errors.New("set env variable UPSTREAM_DRAWING_TOPIC, " +
-			  "for where to send new drawings being received from users."))
+		log.Fatal(errors.New("need to set env variable UPSTREAM_DRAWING_TOPIC. " +
+			  "variable contains the pubsub topic name of where new drawings are sent"))
 	}
 	client, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
@@ -34,9 +34,20 @@ func init() {
 	upstreamTopic = client.Topic(upstreamTopicName)
 }
 
+type Point struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
 type Drawing struct {
+	// where this drawing belongs
 	CanvasID  string `json:"canvasId"`
+
+	// Id for keeping track upstream of duplicate drawings
 	DrawingID string `json:"drawingId"`
+
+	// Points to be connected by lines in order that makes up the drawing
+	Points []Point `json:"points"`
 }
 
 func (d *Drawing) Marshal() ([]byte, error) {

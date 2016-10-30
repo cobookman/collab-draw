@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -58,7 +59,7 @@ func main() {
 	}))
 
 	s.Handle("/", r)
-	err := http.ListenAndServe("0.0.0.0:8080", s)
+	err := http.ListenAndServe("0.0.0.0:8080", handlers.CORS()(s))
 	log.Print("Failed to serve 8080", err)
 }
 

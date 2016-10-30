@@ -6,4 +6,5 @@ automatic_scaling:
         min_num_instances: 1
 
 env_variables:
+        GCLOUD_PROJECT: 'strong-moose'
         GCLOUD_DATASET_ID: 'strong-moose'

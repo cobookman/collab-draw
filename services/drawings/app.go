@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os/signal"
+	"github.com/gorilla/handlers"
 	"cloud.google.com/go/pubsub"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -42,10 +44,27 @@ func main() {
 	ae.Path("/health").Methods("GET", "POST").
 		HandlerFunc(healthCheck)
 
+	r.Path("/ipaddr").
+		HandlerFunc(hostIpHandler)
+
 	r.Path("/canvas").
 		HandlerFunc(WebsocketMiddleware(UserCanvasSocket))
 
 	s.Handle("/", r)
+
+	// cleanup on os kill signal
+	go func() {
+		c := make(chan os.Signal, 10)
+		signal.Notify(c, os.Interrupt)
+		// block until we get a kill signal
+		<-c
+		if err := mq.Cleanup(ctx); err != nil {
+			log.Fatal(err)
+		} else {
+			log.Print("Cleaned up before exit")
+		}
+		os.Exit(0)
+	}()
 
 	// Start servers. If any server crashes the wait group is decrimented,
 	// and the main server will quit, causing our docker manager to restart the
@@ -59,7 +78,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		err := http.ListenAndServe("0.0.0.0:8080", s)
+		err := http.ListenAndServe("0.0.0.0:8080", handlers.CORS()(s))
 		log.Print("Failed to serve 8080", err)
 	}()
 
@@ -67,7 +86,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		err := http.ListenAndServe("0.0.0.0:65080", s)
+		err := http.ListenAndServe("0.0.0.0:65080", handlers.CORS()(s))
 		log.Print("Failed to serve 65080", err)
 	}()
 
@@ -109,6 +128,10 @@ func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
+}
+
+func hostIpHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp() + ":65080")
 }
 
 func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {
