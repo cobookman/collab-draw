@@ -16,7 +16,14 @@ import (
 )
 
 var (
-	upgrader = websocket.Upgrader{}
+	upgrader = websocket.Upgrader{
+
+		// Allow cross origin requests
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
 	gopath   = os.Getenv("GOPATH")
 	mq       *MessagingQueue
 )

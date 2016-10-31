@@ -92,28 +92,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       ready: function() {
         window.location.host;
-        this.$.hostIp.url = this.websocketHost;
+        this.$.hostIp.url = this.websocketHost + "/ipaddr";
         this.$.hostIp.generateRequest();
         this.initCanvas()
       },
       onHostIp: function(data) {
-        if(!data || !data.detail || !data.detail.response.wshost) {
+        if(!data || !data.detail || !data.detail.response.wsip) {
           alert("No host for websockets connection");
         } else {
           if (this.ws) {
             this.ws.close();
           }
 
-          this.ws = new Websocket("ws://" + data.detail.response.wsip + "/canvas");
+          console.log("Opening a connection to: ws://" + data.detail.response.wsip + "/canvas");
+          this.ws = new WebSocket("ws://" + data.detail.response.wsip + "/canvas?canvasId=" + this.canvasId);
+
           this.ws.onopen = function() {
             console.log("Connected to ws");
             this.set("connected", true);
           }.bind(this);
+
           this.ws.onclose = function() {
             console.log("Disconnected to ws");
             this.set("conneccted", false);
             this.ws = null;
           }.bind(this);
+
           this.ws.onmessage = function(evt) {
             this.onUpstreamDrawing(evt.data);
           }.bind(this);
@@ -142,14 +146,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           this.x = x;
           this.y = y;
-          this.pointbuf.append({x: x, y: y});
+          this.pointbuf.push({x: x, y: y});
         } else if (e.type == "up") {
           // send drawn points downstream
           var data = JSON.stringify({
             canvasId: this.canvasId,
             points: this.pointbuf,
           });
-          console.log(data);
+          console.log("sending drawing: ", data);
           this.ws.send(data);
           this.pointbuf = [];
         } else {

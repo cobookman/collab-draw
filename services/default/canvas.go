@@ -44,6 +44,7 @@ func (c *Canvas) Get(ctx context.Context, id string) error {
 	}
 
 	err = dc.Get(ctx, k, c)
+	c.Id = k.Encode()
 	return err
 }
 

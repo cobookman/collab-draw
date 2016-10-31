@@ -96,8 +96,12 @@ func cleanup(canvasID string, c *websocket.Conn, mq *MessagingQueue) {
 
 func UserCanvasSocket(r *http.Request, c *websocket.Conn, mq *MessagingQueue) {
 	ctx := context.Background()
-	canvasID := r.FormValue("id")
-
+	canvasID := r.FormValue("canvasId")
+	if len(canvasID) == 0 {
+		log.Print("missing canvasId query parameter.")
+		SocketErrf(c, nil, "missing canvasId query parameter.")
+		return
+	}
 	// add a subscription
 	addSub(canvasID, c)
 	if err := AddCanvasSubscription(ctx, canvasID, mq.Topic.ID()); err != nil {

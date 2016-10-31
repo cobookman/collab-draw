@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"cloud.google.com/go/datastore"
 	"errors"
 	"golang.org/x/net/context"
@@ -56,6 +57,7 @@ func CreateCanvas(ctx context.Context) (*Canvas, error) {
 
 	// Attach the new id to canvas for future ref.
 	c.ID = k.Encode()
+	log.Print("Generated key id: ", c.ID)
 	return c, nil
 }
 
