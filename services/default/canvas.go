@@ -2,7 +2,7 @@ package main
 
 import (
 	"cloud.google.com/go/datastore"
-	"errors"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"log"
 	"os"
@@ -26,37 +26,33 @@ func init() {
 }
 
 type Canvas struct {
-	Id string `json:"id"`
+	ID      string    `datastore:"-" json:"id"`
+	Created time.Time `datastore:"created" json:"created"`
 }
 
 type Canvases struct {
 	Canvases []Canvas
 }
 
-func (c *Canvas) Get(ctx context.Context, id string) error {
-	k, err := datastore.DecodeKey(id)
-	if err != nil {
-		return err
+func GetCanvas(ctx context.Context, id string) (*Canvas, error) {
+	k := datastore.NameKey(Kind, id, nil)
+	c := new(Canvas)
+	if err := dc.Get(ctx, k, c); err != nil {
+		return nil, err
 	}
-
-	if k.Kind() != Kind {
-		return errors.New("Invalid key")
-	}
-
-	err = dc.Get(ctx, k, c)
-	c.Id = k.Encode()
-	return err
+	c.ID = id
+	return c, nil
 }
 
-func (c *Canvas) Create(ctx context.Context) error {
-	k := datastore.NewIncompleteKey(ctx, Kind, nil)
-	k, err := dc.Put(ctx, k, c)
-	if err != nil {
-		return err
-	}
+func NewCanvas(ctx context.Context) (*Canvas, error) {
+	c := new(Canvas)
+	c.Created = time.Now()
+	c.ID = uuid.NewV4().String()
 
-	c.Id = k.Encode()
-	return nil
+	k := datastore.NameKey(Kind, c.ID, nil)
+	k, err := dc.Put(ctx, k, c)
+
+	return c, err
 }
 
 func (cs *Canvases) GetAll(ctx context.Context, activeSince time.Time, limit int) error {

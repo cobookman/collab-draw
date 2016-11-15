@@ -1,10 +1,9 @@
 package main
 
 import (
-	"os/signal"
-	"github.com/gorilla/handlers"
 	"cloud.google.com/go/pubsub"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/satori/go.uuid"
@@ -12,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
 )
 
@@ -24,8 +24,8 @@ var (
 		},
 	}
 
-	gopath   = os.Getenv("GOPATH")
-	mq       *MessagingQueue
+	gopath = os.Getenv("GOPATH")
+	mq     *MessagingQueue
 )
 
 func main() {
@@ -138,7 +138,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func hostIpHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp() + ":65080")
+	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp()+":65080")
 }
 
 func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {

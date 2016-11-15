@@ -156,12 +156,12 @@ func processMsg(c *websocket.Conn, mt int, msg []byte) {
 		return
 	}
 
-	if err := HandleNewDrawing(ctx, d); err != nil {
+	if err := d.Forward(ctx); err != nil {
 		SocketErrf(c, err, "Failed to handle drawing")
 		return
 	}
 
-	SocketRespf(c, msg)
+	SocketRespf(c, d)
 }
 
 // Called when we get a pubsub message that needs to be sent to some of our

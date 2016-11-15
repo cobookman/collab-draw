@@ -62,10 +62,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         'canvas.track': 'onDraw'
       },
       properties: {
-        canvasId: {
-          type: String,
-          notify: true
-        },
         connected: {
           type: Boolean,
           notify: true,
@@ -105,7 +101,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
 
           console.log("Opening a connection to: ws://" + data.detail.response.wsip + "/canvas");
-          this.ws = new WebSocket("ws://" + data.detail.response.wsip + "/canvas?canvasId=" + this.canvasId);
+          this.ws = new WebSocket("ws://" + data.detail.response.wsip + "/canvas?canvasId=" + this.data.id);
 
           this.ws.onopen = function() {
             console.log("Connected to ws");
@@ -119,7 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }.bind(this);
 
           this.ws.onmessage = function(evt) {
-            this.onUpstreamDrawing(evt.data);
+            this.onUpstreamMessage(evt.data);
           }.bind(this);
         }
       },
@@ -127,30 +123,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.ctx = this.$.canvas.getContext("2d");
         this.canvasWidth = this.$.canvas.width;
         this.canvasHeight = this.$.canvas.height;
-        this.x = 0;
-        this.y = 0;
+        this.oldPoint = {x: 0, y: 0};
         this.lineWidth = 2;
         this.lineStyle = "black";
         this.pointbuf = [];
       },
       onDraw: function(e) {
         if (e.type == "down" || e.type == "track") {
-          this.pointbuf = [];
+          console.log(e);
           var bounds = this.$.canvas.getBoundingClientRect();
-          var x = e.detail.x - bounds.left;
-          var y = e.detail.y - bounds.top;
+          var point = {
+            x: Math.round(e.detail.x - bounds.left),
+            y: Math.round(e.detail.y - bounds.top)
+          };
+
           if (e.type == "track") {
-            this.drawLine(x, y);
+            this.drawLine(this.oldPoint, point);
           } else if (e.type == "down") {
-            this.drawDot(x, y);
+            this.pointbuf = [];
+            this.drawDot(point);
           }
-          this.x = x;
-          this.y = y;
-          this.pointbuf.push({x: x, y: y});
+          this.oldPoint = point;
+          this.pointbuf.push(point);
         } else if (e.type == "up") {
           // send drawn points downstream
           var data = JSON.stringify({
-            canvasId: this.canvasId,
+            canvasId: this.data.id,
             points: this.pointbuf,
           });
           console.log("sending drawing: ", data);
@@ -160,19 +158,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           console.error("Unknown event type of: ", e.type, e);
         }
       },
-      drawDot: function(x, y) {
+      drawDot: function(point) {
         this.ctx.beginPath();
         this.ctx.fillStyle = this.lineStyle;
-        this.ctx.fillRect(x, y, this.lineWidth, this.lineWidth);
+        this.ctx.fillRect(point.x, point.y, this.lineWidth, this.lineWidth);
         this.ctx.closePath();
       },
-      onUpstreamDrawing: function(drawing) {
-        console.log("Drawing", drawing);
+      onUpstreamMessage: function(message) {
+        if (typeof(message) != "object") {
+          message = JSON.parse(message);
+        }
+
+        console.log("upstream message: ", message);
+        if (!message || !message.type || message.type.toLowerCase() != "drawing") {
+          console.log("Not a drawing message, disregarding");
+          return;
+        }
+
+        if (!message.data || !message.data.points) {
+          console.log("no points in message");
+          return;
+        }
+
+        var oldPoint = null;
+        message.data.points.forEach((point) => {
+          if (!oldPoint) {
+            this.drawDot(point);
+          } else {
+            this.drawLine(oldPoint, point)
+          }
+          oldPoint = point;
+        });
       },
-      drawLine: function(x, y) {
+      drawLine: function(point1, point2) {
         this.ctx.beginPath();
-        this.ctx.moveTo(this.x, this.y);
-        this.ctx.lineTo(x, y);
+        this.ctx.moveTo(point1.x, point1.y);
+        this.ctx.lineTo(point2.x, point2.y);
         this.ctx.strokeStyle = this.lineStyle;
         this.ctx.lineWidth = this.lineWidth;
         this.ctx.stroke();

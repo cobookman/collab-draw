@@ -8,6 +8,7 @@
     "test": "GOOGLE_APPLICATION_CREDENTIALS=./service-account.json GCLOUD_PROJECT=strong-moose mocha -R spec -t 120000 --require intelli-espower-loader test/_setup.js test/*.test.js"
   },
   "dependencies": {
+    "@google-cloud/datastore": "^0.5.0",
     "@google-cloud/pubsub": "^0.1.1"
   },
   "devDependencies": {

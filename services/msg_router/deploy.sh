@@ -8,3 +8,4 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Create topic if not exists
 gcloud alpha pubsub topics create $TOPIC --project=$PROJECT_ID
 gcloud alpha functions deploy forwardDrawing --stage-bucket=$BUCKET --trigger-topic=$TOPIC --project=$PROJECT_ID
+gcloud alpha functions deploy saveDrawing --stage-bucket=$BUCKET --trigger-topic=$TOPIC --project=$PROJECT_ID

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"net/http"
-	"io/ioutil"
 )
 
 var (
@@ -41,5 +41,3 @@ func getHostIp() string {
 	}
 	return string(ip)
 }
-
-

@@ -1,10 +1,10 @@
 package main
 
 import (
+	"cloud.google.com/go/datastore"
+	"golang.org/x/net/context"
 	"log"
 	"os"
-	"golang.org/x/net/context"
-	"cloud.google.com/go/datastore"
 )
 
 var (

@@ -1,6 +1,7 @@
 indexes:
 
-- kind: Drawing
-  ancestor: no
-  properties:
-  - name: CanvasID
+#- kind: Drawing
+#  ancestor: no
+#  properties:
+#  - name: canvasId
+

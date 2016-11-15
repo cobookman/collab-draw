@@ -1,7 +1,6 @@
 package main
 
 import (
-	"path/filepath"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/handlers"
@@ -9,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 var (
@@ -24,16 +24,13 @@ func main() {
 	apiV1 := api.PathPrefix("/v1").Subrouter()
 
 	apiV1.Path("/canvas").Methods("POST").
-		HandlerFunc(RestfulMiddleware(CreateCanvas))
+		HandlerFunc(RestfulMiddleware(HandleCreateCanvas))
 
 	apiV1.Path("/canvas").Methods("GET").
-		HandlerFunc(RestfulMiddleware(GetCanvas))
+		HandlerFunc(RestfulMiddleware(HandleGetCanvas))
 
 	apiV1.Path("/canvases").Methods("GET").
-		HandlerFunc(RestfulMiddleware(ListCanvases))
-
-	apiV1.Path("/hostip").Methods("GET").
-		HandlerFunc(RestfulMiddleware(HostIp))
+		HandlerFunc(RestfulMiddleware(HandleListCanvases))
 
 	// Required for appengine flex to measure the health of service
 	ae.Path("/health").Methods("GET", "POST").
@@ -49,13 +46,13 @@ func main() {
 		fext := filepath.Ext(r.URL.Path)
 		log.Print(r.URL.Path, fext)
 		for _, ext := range exts {
-			if fext == "." + ext {
-				http.ServeFile(w, r, static_assets_path + "/" + r.URL.Path)
+			if fext == "."+ext {
+				http.ServeFile(w, r, static_assets_path+"/"+r.URL.Path)
 				return
 			}
 		}
 
-		http.ServeFile(w, r, static_assets_path + "/index.html")
+		http.ServeFile(w, r, static_assets_path+"/index.html")
 	}))
 
 	s.Handle("/", r)

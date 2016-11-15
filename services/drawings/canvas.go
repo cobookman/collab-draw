@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"cloud.google.com/go/datastore"
-	"errors"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
+	"google.golang.org/api/iterator"
 	"strings"
 	"time"
 )
@@ -15,8 +15,8 @@ var (
 )
 
 type Canvas struct {
-	ID      string `json:"id"`
-	Created time.Time
+	ID      string    `datastore:"-" json:"id"`
+	Created time.Time `datastore:"created" json:"created"`
 }
 
 type Canvases struct {
@@ -24,40 +24,37 @@ type Canvases struct {
 }
 
 type CanvasSubscription struct {
-	CanvasId string `json:"canvasId"`
-	TopicId  string `json:"topic"`
+	CanvasId string `json:"canvasId" datastore:"canvasId"`
+	TopicId  string `json:"topic" datastore:"topicId"`
 }
 
 func GetCanvas(ctx context.Context, id string) (*Canvas, error) {
-	k, err := datastore.DecodeKey(id)
-	if err != nil {
+	k := datastore.NameKey(CanvasKind, id, nil)
+	c := new(Canvas)
+	if err := datastoreClient().Get(ctx, k, c); err != nil {
 		return nil, err
 	}
-
-	if k.Kind() != CanvasKind {
-		return nil, errors.New("Invalid key")
-	}
-
-	c := new(Canvas)
-	err = datastoreClient().Get(ctx, k, c)
 
 	// attach the canvas's id for future ref.
 	c.ID = id
-	return c, err
+	return c, nil
 }
 
 func CreateCanvas(ctx context.Context) (*Canvas, error) {
-	k := datastore.NewIncompleteKey(ctx, CanvasKind, nil)
-	c := new(Canvas)
+	id := uuid.NewV4().String()
+	k := datastore.NameKey(CanvasKind, id, nil)
+	c := &Canvas{
+		Created: time.Now(),
+	}
+
 	c.Created = time.Now().UTC()
 	k, err := datastoreClient().Put(ctx, k, c)
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Attach the new id to canvas for future ref.
-	c.ID = k.Encode()
-	log.Print("Generated key id: ", c.ID)
+	c.ID = k.Name
 	return c, nil
 }
 
@@ -65,7 +62,7 @@ func CreateCanvas(ctx context.Context) (*Canvas, error) {
 // know who to notify when a new drawing is added.
 func AddCanvasSubscription(ctx context.Context, canvasId string, topicName string) error {
 	name := canvasId + "." + topicName
-	k := datastore.NewKey(ctx, CanvasSubKind, name, 0, nil)
+	k := datastore.NameKey(CanvasSubKind, name, nil)
 	sub := new(CanvasSubscription)
 	sub.CanvasId = canvasId
 	sub.TopicId = topicName
@@ -76,7 +73,7 @@ func AddCanvasSubscription(ctx context.Context, canvasId string, topicName strin
 
 func RemoveCanvasSubscription(ctx context.Context, canvasId string, topicName string) error {
 	name := canvasId + "." + topicName
-	k := datastore.NewKey(ctx, CanvasSubKind, name, 0, nil)
+	k := datastore.NameKey(CanvasSubKind, name, nil)
 	return dc.Delete(ctx, k)
 }
 
@@ -94,13 +91,13 @@ func GetCanvasSubscriptions(ctx context.Context, canvasId string) ([]string, err
 	for t := datastoreClient().Run(ctx, q); ; {
 		var sub CanvasSubscription
 		k, err := t.Next(&sub)
-		if err == datastore.Done {
+		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-		subName := strings.Replace(k.Name(), namePrefix, "", 1)
+		subName := strings.Replace(k.Name, namePrefix, "", 1)
 		subNames = append(subNames, subName)
 	}
 	return subNames, nil
