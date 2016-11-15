@@ -5,12 +5,11 @@ var datastore = Datastore();
 var pubsub = Pubsub();
 
 exports.forwardDrawing = function forwardDrawing (context, data) {
-  console.log("Forwarding drawing");
+  console.log("Forwarding drawing: ", data);
   if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
     return context.failure("canvasId not provided. Need to know which canvas the drawing is placed in");
   }
 
-  console.log("Finding subscriptions to canvas: ", data.canvasId);
   var subscriptionPrefix = data.canvasId + ".";
   var smallestKey = datastore.key(["CanvasSub", subscriptionPrefix]);
   var largestKey = datastore.key(["CanvasSub", subscriptionPrefix + "\ufffd"]);
@@ -19,7 +18,6 @@ exports.forwardDrawing = function forwardDrawing (context, data) {
       .filter("__key__", ">", smallestKey)
       .filter("__key__", "<", largestKey);
 
-  console.log("Running query now");
   datastore.runQuery(query, (err, canvasSubs) => {
     if (err) {
       console.log("Failed to run query:", err);
@@ -28,7 +26,7 @@ exports.forwardDrawing = function forwardDrawing (context, data) {
 
     // async publish pubsub messages
     var counter = 0;
-    console.log("Fetched subscriptions: ", canvasSubs);
+    console.log("Forwarding drawing to subs: ", canvasSubs);
     canvasSubs.forEach((canvasSub) => {
       ++counter;
       var topic = pubsub.topic(canvasSub.topicId);
@@ -55,27 +53,35 @@ exports.forwardDrawing = function forwardDrawing (context, data) {
 };
 
 exports.saveDrawing = function saveDrawing (context, data) {
-  console.log("Saving drawing");
+  console.log("Attempting to save drawing: ", data);
   if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
     return context.failure("canvasId not provided. Need to know which canvas the drawing is placed in");
   }
 
   if (!data.hasOwnProperty("drawingId") || !data.drawingId) {
-    return context.failure("canvasId not provided. Need to know which canvas the drawing is placed in");
+    return context.failure("drawingId not provided. Need to know which canvas the drawing is placed in");
   }
 
   var key = datastore.key(["Drawing", data.drawingId]);
-  console.log("Saving drawing to datastore now");
   datastore.save({
     key: key,
-    data: data
+    data: [
+      {
+        "name": "canvasId",
+        "value": data.canvasId
+      }, {
+        "name": "drawingId",
+        "value": data.drawingId
+      }, {
+        "name": "points",
+        "value": data.points
+      }
+    ]
   }, (err) => {
     if (err) {
-      console.log("Failed to save drawing to datastore");
-      context.failure(err);
-    } else {
-      console.log("Successfully saved drawing to datastore");
-      context.success("Saved drawing");
+      console.error(err);
+      return context.failure(err);
     }
+    return context.success("saved drawing (" + data.drawingId + ")");
   });
 };

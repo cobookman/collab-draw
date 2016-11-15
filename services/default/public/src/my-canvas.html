@@ -130,7 +130,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       onDraw: function(e) {
         if (e.type == "down" || e.type == "track") {
-          console.log(e);
           var bounds = this.$.canvas.getBoundingClientRect();
           var point = {
             x: Math.round(e.detail.x - bounds.left),
