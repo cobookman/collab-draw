@@ -1,16 +1,11 @@
 runtime: custom
-vm: true
+env: flex
 service: drawings
-
-network:
-        forwarded_ports:
-                - 65080
-        instance_tag: websocket
 
 automatic_scaling:
         min_num_instances: 1
 
 env_variables:
-        GCLOUD_PROJECT: 'strong-moose'
+        # GCLOUD_PROJECT: 'strong-moose'
         GCLOUD_DATASET_ID: 'strong-moose'
         UPSTREAM_DRAWING_TOPIC: 'incoming-drawing'

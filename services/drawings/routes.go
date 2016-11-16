@@ -1,9 +1,11 @@
 package main
 
 import (
+	"time"
+	"io/ioutil"
+	"fmt"
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/websocket"
 	"golang.org/x/net/context"
 	"log"
 	"net/http"
@@ -12,7 +14,9 @@ import (
 )
 
 var (
-	userSockets = make(map[string][]*websocket.Conn)
+	// Using a pointer here as it allows us to keep track of who's who
+	// through object pointer addresses
+	userSockets = make(map[string][]*http.ResponseWriter)
 	lock        = sync.RWMutex{}
 )
 
@@ -26,42 +30,54 @@ type SocketMsg struct {
 	Data interface{} `json:"data"`
 }
 
-func SocketErrf(c *websocket.Conn, err error, msg string) {
+type Status struct {
+	Message string `json:"msg"`
+}
+
+func writeSSE(w http.ResponseWriter, eventType string, data string) {
+	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, data)
+	f, ok := w.(http.Flusher)
+	if ok {
+		f.Flush()
+	}
+}
+
+func PushErr(w http.ResponseWriter, err error, msg string) {
 	se := SocketErr{
 		Error:   err,
 		Message: msg,
 	}
 	b, _ := json.Marshal(se)
-	c.WriteMessage(websocket.TextMessage, b)
+	writeSSE(w, "error", string(b))
 }
 
-func SocketRespf(c *websocket.Conn, v interface{}) {
+func PushResp(w http.ResponseWriter, v interface{}) {
 	sm := SocketMsg{
 		Type: reflect.TypeOf(v).Name(),
 		Data: v,
 	}
 	b, _ := json.Marshal(sm)
-	c.WriteMessage(websocket.TextMessage, b)
+	writeSSE(w, "message", string(b))
 }
 
 // adds a websocket conn
-func addSub(canvasID string, c *websocket.Conn) {
+func addSub(canvasID string, w *http.ResponseWriter) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	socs := userSockets[canvasID]
-	userSockets[canvasID] = append(socs, c)
+	userSockets[canvasID] = append(socs, w)
 }
 
 // removes the specified websocket conn, and gives a count of how many
 // remaining subs are on the server. returns -1 if element not removed
-func removeSub(canvasID string, c *websocket.Conn) (int, error) {
+func removeSub(canvasID string, w *http.ResponseWriter) (int, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	cs := userSockets[canvasID]
 	for i := 0; i < len(cs); i++ {
-		if cs[i] == c {
+		if cs[i] == w {
 			cs = append(cs[:i], cs[i+1:]...)
 			userSockets[canvasID] = cs
 			return len(cs), nil
@@ -71,20 +87,20 @@ func removeSub(canvasID string, c *websocket.Conn) (int, error) {
 }
 
 // Locks the usersocket map, and returns a copy of websocket connections
-func getSubs(canvasID string) []*websocket.Conn {
+func getSubs(canvasID string) []*http.ResponseWriter {
 	lock.RLock()
 	defer lock.RUnlock()
 	cs := userSockets[canvasID]
-	csCopy := make([]*websocket.Conn, len(cs))
+	csCopy := make([]*http.ResponseWriter, len(cs))
 	copy(csCopy, cs)
 	return csCopy
 }
 
 // Cleanup a subscriptions on websocket close
-func cleanup(canvasID string, c *websocket.Conn, mq *MessagingQueue) {
+func cleanup(canvasID string, w *http.ResponseWriter, mq *MessagingQueue) {
 	ctx := context.Background()
 
-	remainingSubs, err := removeSub(canvasID, c)
+	remainingSubs, err := removeSub(canvasID, w)
 	if err != nil {
 		log.Print(err)
 	}
@@ -94,74 +110,81 @@ func cleanup(canvasID string, c *websocket.Conn, mq *MessagingQueue) {
 	}
 }
 
-func UserCanvasSocket(r *http.Request, c *websocket.Conn, mq *MessagingQueue) {
+func UserCanvasDrawingPush(w http.ResponseWriter, r *http.Request, mq *MessagingQueue) {
 	ctx := context.Background()
 	canvasID := r.FormValue("canvasId")
 	if len(canvasID) == 0 {
 		log.Print("missing canvasId query parameter.")
-		SocketErrf(c, nil, "missing canvasId query parameter.")
+		PushErr(w, nil, "missing canvasId query parameter.")
 		return
 	}
 	// add a subscription
-	addSub(canvasID, c)
+	addSub(canvasID, &w)
 	if err := AddCanvasSubscription(ctx, canvasID, mq.Topic.ID()); err != nil {
 		log.Print(err)
-		SocketErrf(c, err, "Failed to add subscription to canvas updates")
+		PushErr(w, err, "Failed to add subscription to canvas updates")
 		return
 	}
 
-	// when done, cleanup
-	defer cleanup(canvasID, c, mq)
+	// when done, cleanup ourcanvas subscription
+	// we just created
+	defer cleanup(canvasID, &w, mq)
 
 	// get canvas & send to end user
 	canvas, err := GetCanvas(ctx, canvasID)
 	if err != nil {
 		log.Print(err)
-		SocketErrf(c, err, "Failed to get specified canvas")
+		PushErr(w, err, "Failed to get specified canvas")
 		return
 	}
-	SocketRespf(c, canvas)
+	PushResp(w, canvas)
 
 	// get canvas's drawings & send to end user
 	drawings, err := GetDrawings(ctx, canvas)
 	if err != nil {
 		log.Print(err)
-		SocketErrf(c, err, "Failed to get previous drawings for canvas")
+		PushErr(w, err, "Failed to get previous drawings for canvas")
 		return
 	}
 
 	// Send up the drawings one at a time
 	for _, d := range drawings {
-		SocketRespf(c, d)
+		PushResp(w, d)
 	}
 
-	// Deal with incoming drawings
+		PushErr(w, nil, "HI WORLD")
+
+	// Keep informing our client that we are still alive
+	closenotify := w.(http.CloseNotifier).CloseNotify()
 	for {
-		mt, msg, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
+		select {
+		case <-closenotify:
+			return
+		default:
+			PushResp(w, Status{
+				Message: "Still Alive",
+			})
 		}
-		log.Printf("recv: %s", msg)
-		processMsg(c, mt, msg)
+		time.Sleep(1 * time.Second)
 	}
 }
 
-func processMsg(c *websocket.Conn, mt int, msg []byte) {
-	ctx := context.Background()
+func HandleIncomingDrawing(r *http.Request) (interface{}, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	d := Drawing{}
-	if err := d.Unmarshal(msg); err != nil {
-		SocketErrf(c, err, "Failed to parse sent drawing")
-		return
+	if err := d.Unmarshal(body); err != nil {
+		return nil, err
 	}
 
+	ctx := context.Background()
 	if err := d.Forward(ctx); err != nil {
-		SocketErrf(c, err, "Failed to handle drawing")
-		return
+		return nil, err
 	}
-
-	SocketRespf(c, d)
+	return d, nil
 }
 
 // Called when we get a pubsub message that needs to be sent to some of our
@@ -174,7 +197,7 @@ func OnIncomingDrawing(drawing Drawing) error {
 	}
 
 	for i := 0; i < len(subs); i++ {
-		SocketRespf(subs[i], drawing)
+		PushResp(*subs[i], drawing)
 	}
 
 	return nil

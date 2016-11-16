@@ -45,10 +45,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </div>
 
     <iron-ajax
-      id="hostIp"
+      id="submitDrawing"
       method="POST"
       body="{}"
-      on-response="onHostIp"
+      on-response="onDrawingSuccess"
       handle-as="json">
     </iron-ajax>
   </template>
@@ -67,7 +67,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           notify: true,
           value: false
         },
-        websocketHost: {
+        drawingsHost: {
           type: String,
           notify: false,
           value: function() {
@@ -75,8 +75,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             host = host.replace("www.", "");
             host = "drawings-dot-" + host;
             return window.location.protocol + "//" + host;
-          }
-        }
+          },
+        },
       },
       observers: [
         "_routeChanged(route.path)"
@@ -87,37 +87,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
       ready: function() {
-        window.location.host;
-        this.$.hostIp.url = this.websocketHost + "/ipaddr";
-        this.$.hostIp.generateRequest();
-        this.initCanvas()
+        this.initCanvas();
+        this.initServerPush();
       },
-      onHostIp: function(data) {
-        if(!data || !data.detail || !data.detail.response.wsip) {
-          alert("No host for websockets connection");
-        } else {
-          if (this.ws) {
-            this.ws.close();
-          }
-
-          console.log("Opening a connection to: ws://" + data.detail.response.wsip + "/canvas");
-          this.ws = new WebSocket("ws://" + data.detail.response.wsip + "/canvas?canvasId=" + this.data.id);
-
-          this.ws.onopen = function() {
-            console.log("Connected to ws");
-            this.set("connected", true);
-          }.bind(this);
-
-          this.ws.onclose = function() {
-            console.log("Disconnected to ws");
-            this.set("conneccted", false);
-            this.ws = null;
-          }.bind(this);
-
-          this.ws.onmessage = function(evt) {
-            this.onUpstreamMessage(evt.data);
-          }.bind(this);
+      onSubmitDrawing: function(args, err) {
+        if (err) {
+          console.error(err);
+          alert(err);
         }
+        console.log(args);
+      },
+      submitDrawing: function(drawing) {
+        if (typeof(drawing) != "object") {
+          throw new Error("drawing must be an object");
+        }
+
+        var ia = document.createElement("iron-ajax");
+        ia.method = "POST";
+        ia.body = JSON.stringify(drawing);
+        ia.handleAs = "json";
+        ia.url = this.drawingsHost + "/drawing";
+
+        ia.addEventListener("error", ()=>{
+          this.onSubmitDrawing.bind(this, arguments, "Failed to submit drawing");
+        });
+        ia.addEventListener("response", ()=>{
+          this.onSubmitDrawing.bind(this, arguments, null);
+        });
+
+        console.log("Sending drawing downstream", drawing);
+        ia.generateRequest();
+      },
+      initServerPush: function() {
+        var source = new EventSource("drawings-dot-strong-moose.appspot-preview.com/canvas?id=" + this.data.id);
+        source.onmessage = (event) => {
+          this.onUpstreamMessage(event.data);
+        };
       },
       initCanvas: function() {
         this.ctx = this.$.canvas.getContext("2d");
@@ -146,12 +151,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.pointbuf.push(point);
         } else if (e.type == "up") {
           // send drawn points downstream
-          var data = JSON.stringify({
+          this.submitDrawing({
             canvasId: this.data.id,
-            points: this.pointbuf,
+            points: this.pointbuf
           });
-          console.log("sending drawing: ", data);
-          this.ws.send(data);
           this.pointbuf = [];
         } else {
           console.error("Unknown event type of: ", e.type, e);

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"cloud.google.com/go/pubsub"
 	"fmt"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"log"
@@ -16,14 +16,6 @@ import (
 )
 
 var (
-	upgrader = websocket.Upgrader{
-
-		// Allow cross origin requests
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
-
 	gopath = os.Getenv("GOPATH")
 	mq     *MessagingQueue
 )
@@ -55,7 +47,10 @@ func main() {
 		HandlerFunc(hostIpHandler)
 
 	r.Path("/canvas").
-		HandlerFunc(WebsocketMiddleware(UserCanvasSocket))
+		HandlerFunc(ServerPushMiddleware(UserCanvasDrawingPush))
+
+	r.Path("/drawing").Methods("POST").
+		HandlerFunc(RestfulMiddleware(HandleIncomingDrawing))
 
 	s.Handle("/", r)
 
@@ -89,14 +84,6 @@ func main() {
 		log.Print("Failed to serve 8080", err)
 	}()
 
-	// Create blocking thread for http server to bypass appengine proxy
-	go func() {
-		defer wg.Done()
-
-		err := http.ListenAndServe("0.0.0.0:65080", handlers.CORS()(s))
-		log.Print("Failed to serve 65080", err)
-	}()
-
 	// Create thread for messaging queue worker
 	go func() {
 		defer wg.Done()
@@ -117,30 +104,27 @@ func main() {
 	}
 }
 
-type WebsocketApi func(r *http.Request, c *websocket.Conn, mq *MessagingQueue)
-type IncomingDrawingHandler func(drawing Drawing) error
-
-func WebsocketMiddleware(f WebsocketApi) http.HandlerFunc {
+type ServerPushHandler func(w http.ResponseWriter, r *http.Request, mq *MessagingQueue)
+func ServerPushMiddleware(f ServerPushHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// upgrader.Upgrade auto writes http errors on failure
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
+		_, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 			return
 		}
 
-		defer ws.Close()
-		f(r, ws, mq)
+		// Set Server push headers
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		// https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
+		w.Header().Set("X-Accel-Buffering", "no")
+		f(w, r, mq)
 	}
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ok")
-}
-
-func hostIpHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp()+":65080")
-}
-
+type IncomingDrawingHandler func(drawing Drawing) error
 func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {
 	return func(msg *pubsub.Message) error {
 		drawing := Drawing{}
@@ -151,3 +135,39 @@ func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHan
 		return handler(drawing)
 	}
 }
+
+type RestfulApi func(r *http.Request) (interface{}, error)
+type ErrorResp struct {
+        Error string `json:"error"`
+}
+func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+                var status int
+                var out interface{}
+
+                v, err := f(r)
+                if err != nil {
+                        status = http.StatusInternalServerError
+                        out = ErrorResp{
+                                Error: err.Error(),
+                        }
+                } else {
+                        status = http.StatusOK
+                        out = v
+                }
+
+		w.Header().Set("Content-Type", "application/json;charset=UTF-8")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(out)
+        }
+}
+
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "ok")
+}
+
+func hostIpHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp()+":65080")
+}
+
