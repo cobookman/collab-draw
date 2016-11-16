@@ -1,87 +1,137 @@
 "use strict";
+
 var Pubsub = require("@google-cloud/pubsub");
 var Datastore = require("@google-cloud/datastore");
 var datastore = Datastore();
 var pubsub = Pubsub();
 
-exports.forwardDrawing = function forwardDrawing (context, data) {
-  console.log("Forwarding drawing: ", data);
-  if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
-    return context.failure("canvasId not provided. Need to know which canvas the drawing is placed in");
+exports.handleDrawing = function (context, data) {
+  if (!data) {
+    console.log("No data, disregarding");
   }
 
-  var subscriptionPrefix = data.canvasId + ".";
-  var smallestKey = datastore.key(["CanvasSub", subscriptionPrefix]);
-  var largestKey = datastore.key(["CanvasSub", subscriptionPrefix + "\ufffd"]);
+  if (typeof(data) != "object") {
+    try {
+      data = JSON.parse(data);
+    } catch(e) {
+      console.log("Input is not json: ", e);
+      console.log("Data type is: ", typeof(data));
+      return context.success("input is not json, disregarding");
+    }
+  }
 
-  var query = datastore.createQuery("CanvasSub")
-      .filter("__key__", ">", smallestKey)
-      .filter("__key__", "<", largestKey);
+  var counter = 0;
+  var errors = [];
+  var onDone = function(err) {
+    --counter;
+    if (err) {
+      errors.push(err);
+    }
+  }.bind(this);
 
+  console.log("Saving drawing: ", data);
+  ++counter;
+  saveDrawing(data, onDone);
+
+  console.log("Forwarding drawing: ", data);
+  ++counter;
+  forwardDrawing(data, onDone);
+
+  let intv = setInterval(()=>{
+    if (counter <= 0) {
+      clearInterval(intv);
+      if (errors.length) {
+        console.log("Errors: ", errors);
+        return context.failure("FAIL");
+      } else {
+        return context.success("DONE");
+      }
+    }
+  }, 25);
+};
+
+
+// Finds all records with a key which starts with given prefix.
+// \ufffd is the largest UTF-8 char in regards to <, > comparisons.
+function genPrefixQuery(kind, prefix) {
+  return datastore.createQuery(kind)
+      .filter("__key__", ">", datastore.key([kind, prefix]))
+      .filter("__key__", "<", datastore.key([kind, prefix + "\ufffd"]));
+}
+
+function forwardDrawing(data, cb) {
+  if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
+    return cb("canvasId not provided. Need to know which canvas the drawing is placed in");
+  }
+
+  let query = genPrefixQuery("CanvasSub", data.canvasId + ".");
   datastore.runQuery(query, (err, canvasSubs) => {
     if (err) {
-      console.log("Failed to run query:", err);
-      return context.error(err);
+      return cb(err);
     }
 
-    // async publish pubsub messages
-    var counter = 0;
     console.log("Forwarding drawing to subs: ", canvasSubs);
+    var count = 0;
+    var errors = [];
     canvasSubs.forEach((canvasSub) => {
-      ++counter;
-      var topic = pubsub.topic(canvasSub.topicId);
-      console.log("Telling canvasSub about drawing", canvasSub.topicId);
-      topic.publish({
-        data: data,
-      }, (err) => {
-        --counter;
+      ++count;
+      pubsub.topic(canvasSub.topicId).publish({data: data}, (err) => {
+        --count;
         if (err) {
-          console.log("Failed to send notification");
-          return context.error(err);
+          errors.push(err);
         }
       });
     });
 
-    // submit an a-ok once all pubsub messages have been sent
-    var inv = setInterval(()=>{
-      if (counter == 0) {
-        clearInterval(inv);
-        context.success("Done sending messages");
+    let intv = setInterval(()=>{
+      if (count <= 0) {
+        clearInterval(intv);
+        if (errors.length) {
+          cb(errors);
+        } else {
+          console.log("Successfully forwarded drawing");
+          cb();
+        }
       }
-    }, 25);
-  });
-};
+    },10);
+  }); // end query
+}
 
-exports.saveDrawing = function saveDrawing (context, data) {
+function saveDrawing (data, cb) {
   console.log("Attempting to save drawing: ", data);
+
+  if (!data) {
+    return cb("No drawing, not saving");
+  }
+
   if (!data.hasOwnProperty("canvasId") || !data.canvasId) {
-    return context.failure("canvasId not provided. Need to know which canvas the drawing is placed in");
+    return cb("Invalid drawing object (no canvasId), not taking any action");
   }
 
   if (!data.hasOwnProperty("drawingId") || !data.drawingId) {
-    return context.failure("drawingId not provided. Need to know which canvas the drawing is placed in");
+    return cb("Invalid drawing object (no drawingId), not taking any action");
   }
 
-  var key = datastore.key(["Drawing", data.drawingId]);
+  let key = datastore.key(["Drawing", data.drawingId]);
   datastore.save({
     key: key,
-    data: [
-      {
-        "name": "canvasId",
-        "value": data.canvasId
-      }, {
-        "name": "drawingId",
-        "value": data.drawingId
-      }, {
-        "name": "points",
-        "value": data.points
-      }
-    ]
+    data: [{
+      "name": "canvasId",
+      "value": data.canvasId
+    }, {
+      "name": "drawingId",
+      "value": data.drawingId
+    }, {
+      "name": "points",
+      "value": data.points
+    }]
   }, (err) => {
     if (err) {
-      console.error(err);
-      return context.failure(err);
+      cb(err);
+    } else {
+      console.log("Successfully saved drawing with id: " + data.drawingId);
+      cb();
     }
-    return context.success("saved drawing (" + data.drawingId + ")");
   });
-};
+}
+

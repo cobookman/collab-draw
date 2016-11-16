@@ -152,8 +152,6 @@ func UserCanvasDrawingPush(w http.ResponseWriter, r *http.Request, mq *Messaging
 		PushResp(w, d)
 	}
 
-		PushErr(w, nil, "HI WORLD")
-
 	// Keep informing our client that we are still alive
 	closenotify := w.(http.CloseNotifier).CloseNotify()
 	for {
@@ -165,7 +163,7 @@ func UserCanvasDrawingPush(w http.ResponseWriter, r *http.Request, mq *Messaging
 				Message: "Still Alive",
 			})
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 

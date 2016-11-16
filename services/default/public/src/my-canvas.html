@@ -119,7 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         ia.generateRequest();
       },
       initServerPush: function() {
-        var source = new EventSource("drawings-dot-strong-moose.appspot-preview.com/canvas?id=" + this.data.id);
+        var source = new EventSource(this.drawingsHost + "/canvas?canvasId=" + this.data.id);
         source.onmessage = (event) => {
           this.onUpstreamMessage(event.data);
         };
@@ -171,17 +171,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           message = JSON.parse(message);
         }
 
-        console.log("upstream message: ", message);
         if (!message || !message.type || message.type.toLowerCase() != "drawing") {
-          console.log("Not a drawing message, disregarding");
+          console.log("Diregarding non drawing message", message);
           return;
         }
 
         if (!message.data || !message.data.points) {
-          console.log("no points in message");
+          console.log("Disregarding empty drawing, no points", message);
           return;
         }
 
+        console.log("Rendering upstream drawing", message);
         var oldPoint = null;
         message.data.points.forEach((point) => {
           if (!oldPoint) {
