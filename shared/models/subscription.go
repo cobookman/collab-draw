@@ -10,14 +10,14 @@ var (
 )
 
 type Subscription struct {
-	CanvasID string `json:"canvasId" datastore:"canvasId"`
+	CanvasID      string `json:"canvasId" datastore:"canvasId"`
 	ServerTopicID string `json:"serverTopicId" datastore:"serverTopicId"`
 }
 
-func NewSubscription(canvasID string, serverTopicID string) *Subscription {
+func NewSubscription(canvasID string) *Subscription {
 	return &Subscription{
-		CanvasID: canvasID,
-		ServerTopicID: serverTopicID,
+		CanvasID:      canvasID,
+		ServerTopicID: DownstreamTopic().ID(),
 	}
 }
 

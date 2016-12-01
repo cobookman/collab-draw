@@ -7,8 +7,8 @@ import (
 
 func TestDrawing_Marshal(t *testing.T) {
 	drawing := Drawing{
-		ID: "DrawingFoo",
-		CanvasID:  "CanvasFooz",
+		ID:       "DrawingFoo",
+		CanvasID: "CanvasFooz",
 		Points: []Point{
 			Point{
 				X: 10,

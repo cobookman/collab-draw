@@ -1,10 +1,9 @@
 package models
 
 import (
-	"testing"
 	"golang.org/x/net/context"
+	"testing"
 )
-
 
 func TestSubscription(t *testing.T) {
 	sub := NewSubscription("SomeCanvasID", "SomeHostTopicID")

@@ -1,14 +1,14 @@
 package models
 
 import (
-	"sync"
-	"log"
 	"cloud.google.com/go/datastore"
 	"golang.org/x/net/context"
+	"log"
+	"sync"
 )
 
 var (
-	dc *datastore.Client
+	dc    *datastore.Client
 	dOnce sync.Once
 )
 

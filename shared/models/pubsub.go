@@ -1,18 +1,18 @@
 package models
 
 import (
-	"sync"
 	"cloud.google.com/go/pubsub"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"log"
+	"sync"
 )
 
 var (
-	pc *pubsub.Client
-	upstream *pubsub.Topic
+	pc         *pubsub.Client
+	upstream   *pubsub.Topic
 	downstream *pubsub.Topic
-	pOnce sync.Once
+	pOnce      sync.Once
 )
 
 // Instantiates our pubsub client.
@@ -46,8 +46,7 @@ func UpstreamTopic() *pubsub.Topic {
 func DownstreamTopic() *pubsub.Topic {
 	if downstream == nil {
 		ctx := context.Background()
-		downstream, _ = PubsubClient().CreateTopic(ctx, "topic-" + uuid.NewV4().String())
+		downstream, _ = PubsubClient().CreateTopic(ctx, "topic-"+uuid.NewV4().String())
 	}
 	return downstream
 }
-

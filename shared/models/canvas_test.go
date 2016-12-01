@@ -1,9 +1,9 @@
 package models
 
 import (
-	"time"
-	"testing"
 	"golang.org/x/net/context"
+	"testing"
+	"time"
 )
 
 func TestNewCanvas(t *testing.T) {
@@ -32,7 +32,7 @@ func TestNewCanvas(t *testing.T) {
 	// Test getting of many canvases
 	startTime := time.Now().UTC()
 	time.Sleep(100 * time.Millisecond)
-	var ncanvases [10]*Canvas;
+	var ncanvases [10]*Canvas
 	for i := 0; i < 10; i++ {
 		c, err := NewCanvas(ctx)
 		if err != nil {
