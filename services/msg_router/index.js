@@ -75,7 +75,7 @@ function forwardDrawing(data, cb) {
     var errors = [];
     canvasSubs.forEach((canvasSub) => {
       ++count;
-      pubsub.topic(canvasSub.topicId).publish({data: data}, (err) => {
+      pubsub.topic(canvasSub.serverTopicID).publish({data: data}, (err) => {
         --count;
         if (err) {
           errors.push(err);
