@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"cloud.google.com/go/pubsub"
+	"encoding/json"
 	"fmt"
+	"github.com/cobookman/collabdraw/shared/models"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"log"
 	"net/http"
@@ -23,11 +23,9 @@ var (
 func main() {
 	log.Print("Starting up messaging queue")
 	ctx := context.Background()
-	projectID := os.Getenv("GCLOUD_PROJECT")
-	topicName := "topic-" + uuid.NewV4().String()
-	subName := "sub-" + uuid.NewV4().String()
+
 	var err error
-	mq, err = NewMessagingQueue(ctx, projectID, topicName, subName)
+	mq, err = NewMessagingQueue(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +102,8 @@ func main() {
 	}
 }
 
-type ServerPushHandler func(w http.ResponseWriter, r *http.Request, mq *MessagingQueue)
+type ServerPushHandler func(w http.ResponseWriter, r *http.Request)
+
 func ServerPushMiddleware(f ServerPushHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, ok := w.(http.Flusher)
@@ -120,14 +119,15 @@ func ServerPushMiddleware(f ServerPushHandler) http.HandlerFunc {
 
 		// https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 		w.Header().Set("X-Accel-Buffering", "no")
-		f(w, r, mq)
+		f(w, r)
 	}
 }
 
-type IncomingDrawingHandler func(drawing Drawing) error
+type IncomingDrawingHandler func(drawing models.Drawing) error
+
 func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHandler {
 	return func(msg *pubsub.Message) error {
-		drawing := Drawing{}
+		drawing := models.Drawing{}
 		if err := drawing.Unmarshal(msg.Data); err != nil {
 			return err
 		}
@@ -138,30 +138,30 @@ func DrawingMessageMiddleware(handler IncomingDrawingHandler) IncomingMessageHan
 
 type RestfulApi func(r *http.Request) (interface{}, error)
 type ErrorResp struct {
-        Error string `json:"error"`
+	Error string `json:"error"`
 }
-func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
-        return func(w http.ResponseWriter, r *http.Request) {
-                var status int
-                var out interface{}
 
-                v, err := f(r)
-                if err != nil {
-                        status = http.StatusInternalServerError
-                        out = ErrorResp{
-                                Error: err.Error(),
-                        }
-                } else {
-                        status = http.StatusOK
-                        out = v
-                }
+func RestfulMiddleware(f RestfulApi) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var status int
+		var out interface{}
+
+		v, err := f(r)
+		if err != nil {
+			status = http.StatusInternalServerError
+			out = ErrorResp{
+				Error: err.Error(),
+			}
+		} else {
+			status = http.StatusOK
+			out = v
+		}
 
 		w.Header().Set("Content-Type", "application/json;charset=UTF-8")
 		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(out)
-        }
+	}
 }
-
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
@@ -170,4 +170,3 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 func hostIpHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "{\"wsip\":\"%s\"}", HostIp()+":65080")
 }
-

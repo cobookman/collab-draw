@@ -2,6 +2,8 @@ package main
 
 import (
 	"cloud.google.com/go/pubsub"
+	"github.com/cobookman/collabdraw/shared/models"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"time"
 )
@@ -12,21 +14,16 @@ type MessagingQueue struct {
 }
 
 // Creates a new subscription to a messaging queue
-func NewMessagingQueue(ctx context.Context, projectID string, topicName string, subName string) (*MessagingQueue, error) {
-	client, err := pubsub.NewClient(ctx, projectID)
+func NewMessagingQueue(ctx context.Context) (*MessagingQueue, error) {
+	subName := "sub-" + uuid.NewV4().String()
+	sub, err := models.PubsubClient().CreateSubscription(ctx, subName, models.DownstreamTopic(), 10*time.Second, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	topic, _ := client.CreateTopic(ctx, topicName)
-	sub, err := client.CreateSubscription(ctx, subName, topic, 10*time.Second, nil)
-	if err != nil {
-		return nil, err
+	mq := &MessagingQueue{
+		Topic:        models.DownstreamTopic(),
+		Subscription: sub,
 	}
-
-	mq := new(MessagingQueue)
-	mq.Topic = topic
-	mq.Subscription = sub
 	return mq, nil
 }
 
