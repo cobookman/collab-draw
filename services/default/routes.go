@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/cobookman/collabdraw/shared/models"
 	"golang.org/x/net/context"
 	"net/http"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 // Creates a new drawing canvas.
 func HandleCreateCanvas(r *http.Request) (interface{}, error) {
 	ctx := context.Background()
-	canvas, err := NewCanvas(ctx)
+	canvas, err := models.NewCanvas(ctx)
 	return canvas, err
 }
 
@@ -22,17 +23,17 @@ func HandleGetCanvas(r *http.Request) (interface{}, error) {
 		return nil, errors.New("Please specify a canvas Id")
 	}
 	ctx := context.Background()
-	canvas, err := GetCanvas(ctx, id)
+	canvas, err := models.GetCanvas(ctx, id)
 	return canvas, err
 }
 
 // Lists active canvases by active since rfc3339 timestamp and up to the given limit.
 func HandleListCanvases(r *http.Request) (interface{}, error) {
-	activeSince, err := time.Parse(time.RFC3339, r.FormValue("activeSince"))
+	createdSince, err := time.Parse(time.RFC3339, r.FormValue("createdSince"))
 	if err != nil {
 		return nil, err
 	}
-	limit := 0
+	limit := 25
 	if len(r.FormValue("limit")) != 0 {
 		var err error
 		limit, err = strconv.Atoi(r.FormValue("limit"))
@@ -41,10 +42,6 @@ func HandleListCanvases(r *http.Request) (interface{}, error) {
 		}
 	}
 
-	canvases := Canvases{}
-
 	ctx := context.Background()
-	err = canvases.GetAll(ctx, activeSince, limit)
-	return canvases, err
+	return models.GetCanvases(ctx, createdSince, limit)
 }
-

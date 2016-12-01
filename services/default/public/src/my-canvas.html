@@ -120,6 +120,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       initServerPush: function() {
         var source = new EventSource(this.drawingsHost + "/canvas?canvasId=" + this.data.id);
+        source.onopen = () => {
+          this.set("connected", true);
+        };
+
         source.onmessage = (event) => {
           this.onUpstreamMessage(event.data);
         };
