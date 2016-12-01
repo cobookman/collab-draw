@@ -30,7 +30,7 @@ docker run \
   -i -t -d \
   -p 8080:8080 \
   -e GOOGLE_APPLICATION_CREDENTIALS="/go/src/github.com/cobookman/collabdraw/services/default/service-account.json" \
-  -e GCLOUD_DATASET_ID="$PROJECT_ID" \
+  -e GCLOUD_PROJECT_ID="$PROJECT_ID" \
   -e GCLOUD_PROJECT="$PROJECT_ID" \
   --name $DOCKER_NAME \
   $DOCKER_TAG

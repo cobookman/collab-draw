@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	conns = SSEConns{}
+	conns = NewSSEConns()
 )
 
 // Cleanup a subscriptions on websocket close

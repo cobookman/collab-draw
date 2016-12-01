@@ -5,20 +5,19 @@ var Datastore = require("@google-cloud/datastore");
 var datastore = Datastore();
 var pubsub = Pubsub();
 
-exports.handleDrawing = function (context, data) {
-  if (!data) {
+exports.handleDrawing = function (event, callback) {
+  console.log("Received event: ", event);
+  if (!event || !event.data) {
     console.log("No data, disregarding");
   }
 
+  // parse base64 data as json obj
+  var pubsubMessage = event.data;
+  var data = Buffer.from(pubsubMessage.data, "base64").toString();
   if (typeof(data) != "object") {
-    try {
-      data = JSON.parse(data);
-    } catch(e) {
-      console.log("Input is not json: ", e);
-      console.log("Data type is: ", typeof(data));
-      return context.success("input is not json, disregarding");
-    }
+    data = JSON.parse(data);
   }
+  console.log("Received drawing: ", data);
 
   var counter = 0;
   var errors = [];
@@ -42,9 +41,9 @@ exports.handleDrawing = function (context, data) {
       clearInterval(intv);
       if (errors.length) {
         console.log("Errors: ", errors);
-        return context.failure("FAIL");
+        return callback(new Error("FAIL"));
       } else {
-        return context.success("DONE");
+        return callback();
       }
     }
   }, 25);
@@ -64,7 +63,7 @@ function forwardDrawing(data, cb) {
     return cb("canvasId not provided. Need to know which canvas the drawing is placed in");
   }
 
-  let query = genPrefixQuery("CanvasSub", data.canvasId + ".");
+  let query = genPrefixQuery("Subscription", data.canvasId + ".");
   datastore.runQuery(query, (err, canvasSubs) => {
     if (err) {
       return cb(err);
@@ -75,7 +74,7 @@ function forwardDrawing(data, cb) {
     var errors = [];
     canvasSubs.forEach((canvasSub) => {
       ++count;
-      pubsub.topic(canvasSub.serverTopicID).publish({data: data}, (err) => {
+      pubsub.topic(canvasSub.serverTopicId).publish({data: data}, (err) => {
         --count;
         if (err) {
           errors.push(err);
@@ -108,19 +107,19 @@ function saveDrawing (data, cb) {
     return cb("Invalid drawing object (no canvasId), not taking any action");
   }
 
-  if (!data.hasOwnProperty("drawingId") || !data.drawingId) {
-    return cb("Invalid drawing object (no drawingId), not taking any action");
+  if (!data.hasOwnProperty("id") || !data.id) {
+    return cb("Invalid drawing object (no id), not taking any action");
   }
 
-  let key = datastore.key(["Drawing", data.drawingId]);
+  let key = datastore.key(["Drawing", data.id]);
   datastore.save({
     key: key,
     data: [{
       "name": "canvasId",
       "value": data.canvasId
     }, {
-      "name": "drawingId",
-      "value": data.drawingId
+      "name": "id",
+      "value": data.id
     }, {
       "name": "points",
       "value": data.points
@@ -129,7 +128,7 @@ function saveDrawing (data, cb) {
     if (err) {
       cb(err);
     } else {
-      console.log("Successfully saved drawing with id: " + data.drawingId);
+      console.log("Successfully saved drawing with id: " + data.id);
       cb();
     }
   });

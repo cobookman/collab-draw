@@ -6,8 +6,8 @@ cd $DIR
 DOCKER_TAG="drawings-service"
 DOCKER_NAME="drawings-service-dev"
 
-# Attempt to build the golang binary before building docker image (fail fast)
-go build $DIR/*.go
+# Build golang application as it gives better error messages
+go build *.go
 if [ $? -ne 0 ]; then
   exit $?
 fi
@@ -31,7 +31,7 @@ docker run \
   -p 8081:8080 \
   -p 65080:65080 \
   -e GOOGLE_APPLICATION_CREDENTIALS="/go/src/github.com/cobookman/collabdraw/services/${PWD##*/}/service-account.json" \
-  -e GCLOUD_DATASET_ID="$PROJECT_ID" \
+  -e GCLOUD_PROJECT_ID="$PROJECT_ID" \
   -e GCLOUD_PROJECT="$PROJECT_ID" \
   -e UPSTREAM_DRAWING_TOPIC="$UPSTREAM_DRAWING_TOPIC" \
   --name $DOCKER_NAME \

@@ -7,3 +7,4 @@ automatic_scaling:
 
 env_variables:
         GCLOUD_PROJECT_ID: 'strong-moose'
+        UPSTREAM_DRAWING_TOPIC: 'incoming-drawing'

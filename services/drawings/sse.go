@@ -38,6 +38,12 @@ func NewSSEConn(w *http.ResponseWriter) *SSEConn {
 	}
 }
 
+func NewSSEConns() *SSEConns {
+	conns := new(SSEConns)
+	conns.writers = make(map[string][]*SSEConn)
+	return conns
+}
+
 func (c SSEConn) Write(eventType string, data string) error {
 	fmt.Fprintf(*c.Writer, "event: %s\ndata: %s\n\n", eventType, data)
 	f, ok := (*c.Writer).(http.Flusher)
